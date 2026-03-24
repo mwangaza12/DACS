@@ -6,7 +6,7 @@ import { logger } from "./middlewares/logger";
 dotenv.config();
 
 const PORT= process.env.PORT || 5000;
-const db = drizzle(process.env.DATABASE_URL!);
+const db = drizzle({connection: process.env.DATABASE_URL!, casing: 'snake_case'});
 const app = express();
 
 app.use(express.json());
