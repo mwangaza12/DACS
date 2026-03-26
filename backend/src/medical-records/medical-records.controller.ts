@@ -17,8 +17,8 @@ export const getAllMedicalRecordsController = async (req: Request, res: Response
 };
 
 export const getMedicalRecordByIdController = async (req: Request, res: Response) => {
-    const id = String(req.params);
-    const record = await getMedicalRecordByIdService(id);
+    const {id}  = req.params;
+    const record = await getMedicalRecordByIdService(String(id));
     if (!record) throw new Error("Medical record not found");
     return success(res, record, "Medical record retrieved successfully");
 };
@@ -32,11 +32,11 @@ export const createMedicalRecordController = async (req: Request, res: Response)
 };
 
 export const updateMedicalRecordController = async (req: Request, res: Response) => {
-    const id = String(req.params);
+    const {id}  = req.params;
     const parsed = UpdateMedicalRecordSchema.safeParse(req.body);
     if (parsed.error) throw new Error(parsed.error.message);
 
-    const updated = await updateMedicalRecordService(id, parsed.data);
+    const updated = await updateMedicalRecordService(String(id), parsed.data);
     if (!updated) throw new Error("Medical record not found");
     return success(res, updated, "Medical record updated successfully");
 };

@@ -1,11 +1,12 @@
 import { Request, Response } from "express";
 import { success } from "../utils/response.handler";
-import { PayBillSchema } from "./billing.dto";
+import { PayBillSchema, UpdateBillSchema } from "./billing.dto";
 import {
     getAllBillsService,
     getBillByIdService,
     getInsuranceClaimsService,
     processPaymentService,
+    updateBillService,
 } from "./billing.service";
 
 export const getAllBillsController = async (req: Request, res: Response) => {
@@ -15,18 +16,28 @@ export const getAllBillsController = async (req: Request, res: Response) => {
 };
 
 export const getBillByIdController = async (req: Request, res: Response) => {
-    const id = String(req.params);
-    const bill = await getBillByIdService(id);
+    const {id} = req.params;
+    const bill = await getBillByIdService(String(id));
     if (!bill) throw new Error("Bill not found");
     return success(res, bill, "Bill retrieved successfully");
 };
 
+export const updateBillController = async (req: Request, res: Response) => {
+    const {id} = req.params;
+    const parsed = UpdateBillSchema.safeParse(req.body);
+    if (parsed.error) throw new Error(parsed.error.message);
+
+    const updated = await updateBillService(String(id), parsed.data);
+    if (!updated) throw new Error("Bill not found");
+    return success(res, updated, "Bill updated successfully");
+};
+
 export const processPaymentController = async (req: Request, res: Response) => {
-    const id = String(req.params);
+    const {id} = req.params;
     const parsed = PayBillSchema.safeParse(req.body);
     if (parsed.error) throw new Error(parsed.error.message);
 
-    const updated = await processPaymentService(id, parsed.data);
+    const updated = await processPaymentService(String(id), parsed.data);
     return success(res, updated, "Payment processed successfully");
 };
 

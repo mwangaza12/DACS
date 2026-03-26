@@ -16,8 +16,8 @@ export const getUserNotificationsController = async (req: AuthRequest, res: Resp
 };
 
 export const markNotificationReadController = async (req: Request, res: Response) => {
-    const id = String(req.params);
-    const updated = await markNotificationReadService(id);
+    const {id} = req.params;
+    const updated = await markNotificationReadService(String(id));
     if (!updated) throw new Error("Notification not found");
     return success(res, updated, "Notification marked as read");
 };

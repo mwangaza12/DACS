@@ -27,8 +27,8 @@ export const getAllAppointmentsController = async (req: Request, res: Response) 
 };
 
 export const getAppointmentByIdController = async (req: Request, res: Response) => {
-    const id = String(req.params);
-    const appointment = await getAppointmentByIdService(id);
+    const {id}  = req.params;;
+    const appointment = await getAppointmentByIdService(String(id));
     if (!appointment) throw new Error("Appointment not found");
     return success(res, appointment, "Appointment retrieved successfully");
 };
@@ -42,20 +42,20 @@ export const createAppointmentController = async (req: Request, res: Response) =
 };
 
 export const updateAppointmentController = async (req: Request, res: Response) => {
-    const id = String(req.params);
+    const {id}  = req.params;
     const parsed = UpdateAppointmentSchema.safeParse(req.body);
     if (parsed.error) throw new Error(parsed.error.message);
 
-    const updated = await updateAppointmentService(id, parsed.data);
+    const updated = await updateAppointmentService(String(id), parsed.data);
     if (!updated) throw new Error("Appointment not found");
     return success(res, updated, "Appointment updated successfully");
 };
 
 export const cancelAppointmentController = async (req: Request, res: Response) => {
-    const id = String(req.params);
+    const {id}  = req.params;;
     const { reason } = req.body;
 
-    const cancelled = await cancelAppointmentService(id, reason);
+    const cancelled = await cancelAppointmentService(String(id), reason);
     if (!cancelled) throw new Error("Appointment not found");
     return success(res, cancelled, "Appointment cancelled successfully");
 };

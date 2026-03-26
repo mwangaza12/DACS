@@ -1,7 +1,8 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "..";
-import { appointments, doctorAvailability } from "../db/schema";
+import { appointments, doctorAvailability, doctors, bills } from "../db/schema";
 import { InsertAppointmentType, UpdateAppointmentType } from "./appointments.dto";
+import { paginate } from "../utils/pagination";
 
 export const getAllAppointmentsService = async (filters: {
     patientId?: string;
@@ -11,7 +12,7 @@ export const getAllAppointmentsService = async (filters: {
     limit?: number;
 }) => {
     const { page = 1, limit = 10 } = filters;
-    const offset = (page - 1) * limit;
+    const { limit: lim, offset } = paginate(page, limit);
 
     const conditions = [];
     if (filters.patientId) conditions.push(eq(appointments.patientId, filters.patientId));
@@ -20,7 +21,7 @@ export const getAllAppointmentsService = async (filters: {
     const query = db.select().from(appointments);
     if (conditions.length > 0) query.where(and(...conditions));
 
-    return query.limit(limit).offset(offset);
+    return query.limit(lim).offset(offset);
 };
 
 export const getAppointmentByIdService = async (appointmentId: string) => {
@@ -37,13 +38,30 @@ export const createAppointmentService = async (data: InsertAppointmentType) => {
     return appointment;
 };
 
-export const updateAppointmentService = async (appointmentId: string, data: UpdateAppointmentType) => {
+export const updateAppointmentService = async (
+    appointmentId: string,
+    data: UpdateAppointmentType
+) => {
+    const current = await getAppointmentByIdService(appointmentId);
+    if (!current) throw new Error("Appointment not found");
+
     const [updated] = await db
         .update(appointments)
         .set({ ...data, updated_at: new Date() })
         .where(eq(appointments.appointmentId, appointmentId))
         .returning();
-    return updated ?? null;
+
+    if (!updated) return null;
+
+    // Auto-create a bill when appointment is marked as completed
+    const wasNotCompleted = current.appointmentStatus !== "completed";
+    const isNowCompleted = updated.appointmentStatus === "completed";
+
+    if (wasNotCompleted && isNowCompleted && updated.patientId && updated.doctorId) {
+        await createBillForAppointment(updated.appointmentId, updated.patientId, updated.doctorId);
+    }
+
+    return updated;
 };
 
 export const cancelAppointmentService = async (appointmentId: string, reason?: string) => {
@@ -60,7 +78,6 @@ export const cancelAppointmentService = async (appointmentId: string, reason?: s
 };
 
 export const getAvailableSlotsService = async (doctorId: string, date: string) => {
-    // Get doctor availability for the day of week
     const dayOfWeek = new Date(date).getDay().toString() as "0"|"1"|"2"|"3"|"4"|"5"|"6";
 
     const [availability] = await db
@@ -76,20 +93,15 @@ export const getAvailableSlotsService = async (doctorId: string, date: string) =
 
     if (!availability) return [];
 
-    // Get booked appointments for that doctor on that date
     const booked = await db
         .select()
         .from(appointments)
-        .where(
-            and(
-                eq(appointments.doctorId, doctorId),
-                eq(appointments.appointmentDate, date)
-            )
-        );
+        .where(and(
+            eq(appointments.doctorId, doctorId),
+            eq(appointments.appointmentDate, date)
+        ));
 
     const bookedTimes = new Set(booked.map((a) => a.appointmentTime));
-
-    // Generate time slots
     const slots: string[] = [];
     const slotDuration = availability.slotDuration ?? 30;
     const [startH, startM] = availability.startTime.split(":").map(Number);
@@ -107,4 +119,43 @@ export const getAvailableSlotsService = async (doctorId: string, date: string) =
     }
 
     return slots;
+};
+
+// ── Internal helpers ──────────────────────────────────────────────────────────
+
+/**
+ * Looks up the doctor's consultationFee and inserts a pending bill.
+ * Called automatically when an appointment transitions to "completed".
+ *
+ * Insurance coverage is set to 0 by default — staff can update it later
+ * via PUT /api/bills/:id once the insurance claim is processed.
+ */
+const createBillForAppointment = async (
+    appointmentId: string,
+    patientId: string,
+    doctorId: string
+) => {
+    const [doctor] = await db
+        .select({ consultationFee: doctors.consultationFee })
+        .from(doctors)
+        .where(eq(doctors.doctorId, doctorId));
+
+    const fee = doctor?.consultationFee ?? "0";
+
+    // Check a bill doesn't already exist for this appointment (idempotency guard)
+    const [existing] = await db
+        .select({ billId: bills.billId })
+        .from(bills)
+        .where(eq(bills.appointmentId, appointmentId));
+
+    if (existing) return; // already billed — skip
+
+    await db.insert(bills).values({
+        appointmentId,
+        patientId,
+        amount: fee,
+        insuranceCovered: "0",
+        patientPayable: fee,   // starts as full amount; reduced when insurance is applied
+        billStatus: "pending",
+    });
 };

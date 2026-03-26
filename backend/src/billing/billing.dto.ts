@@ -12,6 +12,13 @@ export const PayBillSchema = z.object({
     amount: z.number().positive(),
 });
 
+export const UpdateBillSchema = z.object({
+    insuranceCovered: z.string().optional(),   // decimal as string e.g. "1500.00"
+    billStatus: z.enum(["pending","paid","partially_paid","insurance_pending","written_off"]).optional(),
+    notes: z.string().optional(),
+});
+
 export type SelectBillType = z.infer<typeof SelectBillSchema>;
 export type InsertBillType = z.infer<typeof InsertBillSchema>;
 export type PayBillType = z.infer<typeof PayBillSchema>;
+export type UpdateBillType = z.infer<typeof UpdateBillSchema>;

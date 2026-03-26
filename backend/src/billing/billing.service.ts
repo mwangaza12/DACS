@@ -1,18 +1,43 @@
 import { eq } from "drizzle-orm";
 import { db } from "..";
 import { bills, insuranceClaims } from "../db/schema";
-import { PayBillType } from "./billing.dto";
+import { PayBillType, UpdateBillType } from "./billing.dto";
+import { paginate } from "../utils/pagination";
 
 export const getAllBillsService = async (patientId?: string, page = 1, limit = 10) => {
-    const offset = (page - 1) * limit;
+    const { limit: lim, offset } = paginate(page, limit);
     const query = db.select().from(bills);
     if (patientId) query.where(eq(bills.patientId, patientId));
-    return query.limit(limit).offset(offset);
+    return query.limit(lim).offset(offset);
 };
 
 export const getBillByIdService = async (billId: string) => {
     const [bill] = await db.select().from(bills).where(eq(bills.billId, billId));
     return bill ?? null;
+};
+
+export const updateBillService = async (billId: string, data: UpdateBillType) => {
+    const bill = await getBillByIdService(billId);
+    if (!bill) throw new Error("Bill not found");
+
+    // Recalculate patient payable if insurance coverage changes
+    const insuranceCovered = data.insuranceCovered ?? bill.insuranceCovered ?? "0";
+    const totalAmount = parseFloat(bill.amount ?? "0");
+    const covered = parseFloat(insuranceCovered);
+    const patientPayable = Math.max(0, totalAmount - covered).toFixed(2);
+
+    const [updated] = await db
+        .update(bills)
+        .set({
+            insuranceCovered,
+            patientPayable,
+            ...(data.billStatus ? { billStatus: data.billStatus } : {}),
+            updated_at: new Date(),
+        })
+        .where(eq(bills.billId, billId))
+        .returning();
+
+    return updated ?? null;
 };
 
 export const processPaymentService = async (billId: string, data: PayBillType) => {
@@ -35,6 +60,6 @@ export const processPaymentService = async (billId: string, data: PayBillType) =
 };
 
 export const getInsuranceClaimsService = async (page = 1, limit = 10) => {
-    const offset = (page - 1) * limit;
-    return db.select().from(insuranceClaims).limit(limit).offset(offset);
+    const { limit: lim, offset } = paginate(page, limit);
+    return db.select().from(insuranceClaims).limit(lim).offset(offset);
 };
