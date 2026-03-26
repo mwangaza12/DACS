@@ -2,11 +2,11 @@ import { eq } from "drizzle-orm";
 import { db } from "..";
 import { patients, medicalRecords } from "../db/schema";
 import { InsertPatientType, UpdatePatientType } from "./patients.dto";
+import { paginate } from "../utils/pagination";
 
 export const getAllPatientsService = async (page = 1, limit = 10) => {
-    const offset = (page - 1) * limit;
-    const data = await db.select().from(patients).limit(limit).offset(offset);
-    return data;
+    const { limit: lim, offset } = paginate(page, limit);
+    return db.select().from(patients).limit(lim).offset(offset);
 };
 
 export const getPatientByIdService = async (patientId: string) => {
