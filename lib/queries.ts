@@ -117,6 +117,10 @@ export const fetchDoctorAvailability = async (doctorId: string) => {
   }>;
 };
 
+export const fetchDoctorById =  async (doctorId: string) => {
+  const res = await.get(`/doctors/${doctorId}`)
+}
+
 export const fetchAvailableSlots = async (doctorId: string, date: string) => {
   const res = await api.get("/appointments/available-slots", { params: { doctorId, date } });
   return res.data.data as string[];
