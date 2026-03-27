@@ -46,7 +46,12 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} ${syne.variable} ${dmSans.variable} ${dmMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full">
+        {/* Add a main container with relative positioning */}
+        <main className="relative z-10 min-h-screen">
+          {children}
+        </main>
+      </body>
     </html>
   );
 }
