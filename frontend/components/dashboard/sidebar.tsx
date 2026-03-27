@@ -1,12 +1,13 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import {
   LayoutDashboard, Calendar, Users, Stethoscope,
   FileText, CreditCard, BarChart3, Bell,
-  LogOut, Settings,
+  LogOut, Settings, Menu, X,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
 import { fetchAllNotifications } from "@/lib/queries";
@@ -42,18 +43,16 @@ const ROLE_COLORS: Record<UserRole, string> = {
   patient: "bg-primary-500/10 text-primary-400 border-primary-500/20",
 };
 
-export function Sidebar() {
+function SidebarContent({ onNavClick }: { onNavClick?: () => void }) {
   const pathname = usePathname();
-  const router = useRouter();
+  const router   = useRouter();
   const { user, displayName, clearAuth } = useAuthStore();
+  const role = (user?.role ?? "patient") as UserRole;
 
-  const role = user?.role ?? "patient";
-
-  // Unread notification count
   const { data: notifications } = useQuery({
     queryKey: ["notifications", "all"],
-    queryFn: () => fetchAllNotifications(),
-    enabled: !!user,
+    queryFn:  () => fetchAllNotifications(),
+    enabled:  !!user,
     staleTime: 60_000,
   });
 
@@ -69,9 +68,7 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="flex flex-col w-64 min-h-screen bg-surface border-r border-border/60 fixed left-0 top-0 bottom-0 z-40">
-
-      {/* Logo */}
+    <div className="flex flex-col h-full">
       <div className="flex items-center gap-3 px-5 py-5 border-b border-border/60">
         <div className="w-8 h-8 rounded-xl bg-primary-500 flex items-center justify-center shadow-glow-sm flex-shrink-0">
           <svg width="16" height="16" viewBox="0 0 18 18" fill="none">
@@ -85,7 +82,6 @@ export function Sidebar() {
         </div>
       </div>
 
-      {/* User badge */}
       <div className="px-4 py-4 border-b border-border/40">
         <div className="flex items-center gap-3 p-3 rounded-xl bg-card border border-border/60">
           <div className="w-8 h-8 rounded-lg bg-primary-500/20 border border-primary-500/30 flex items-center justify-center flex-shrink-0">
@@ -94,50 +90,36 @@ export function Sidebar() {
             </span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium text-text-primary font-body truncate leading-none mb-1">
-              {displayName()}
-            </p>
-            <span className={cn(
-              "inline-flex items-center px-1.5 py-0.5 rounded-md border text-[10px] font-medium font-body",
-              ROLE_COLORS[role],
-            )}>
+            <p className="text-xs font-medium text-text-primary font-body truncate leading-none mb-1">{displayName()}</p>
+            <span className={cn("inline-flex items-center px-1.5 py-0.5 rounded-md border text-[10px] font-medium font-body", ROLE_COLORS[role])}>
               {ROLE_LABELS[role]}
             </span>
           </div>
         </div>
       </div>
 
-      {/* Navigation */}
       <nav className="flex-1 px-3 py-4 flex flex-col gap-0.5 overflow-y-auto">
         {visibleItems.map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
-          const badge = item.badgeQuery ? unreadCount : 0;
-
+          const badge    = item.badgeQuery ? unreadCount : 0;
           return (
             <Link
               key={item.href}
               href={item.href}
+              onClick={onNavClick}
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-body font-medium",
                 "transition-all duration-150 group relative",
                 isActive
                   ? "bg-primary-500/15 text-primary-300 border border-primary-500/25"
-                  : "text-text-secondary hover:bg-white/4 hover:text-text-primary border border-transparent",
+                  : "text-text-secondary hover:bg-white/[0.04] hover:text-text-primary border border-transparent",
               )}
             >
-              {isActive && (
-                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-primary-400 rounded-r-full" />
-              )}
-
-              <span className={cn(
-                "transition-colors flex-shrink-0",
-                isActive ? "text-primary-400" : "text-text-muted group-hover:text-text-secondary",
-              )}>
+              {isActive && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-primary-400 rounded-r-full" />}
+              <span className={cn("transition-colors flex-shrink-0", isActive ? "text-primary-400" : "text-text-muted group-hover:text-text-secondary")}>
                 {item.icon}
               </span>
-
               <span className="flex-1 truncate">{item.label}</span>
-
               {badge > 0 && (
                 <span className="flex-shrink-0 min-w-[18px] h-[18px] px-1 rounded-full bg-primary-500 text-white text-[10px] font-bold font-body flex items-center justify-center">
                   {badge > 99 ? "99+" : badge}
@@ -148,24 +130,58 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* Bottom actions */}
       <div className="px-3 py-4 border-t border-border/60 flex flex-col gap-1">
-        <Link
-          href="/settings"
-          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-body font-medium text-text-secondary hover:bg-white/4 hover:text-text-primary transition-all duration-150 group border border-transparent"
-        >
+        <Link href="/settings" onClick={onNavClick}
+          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-body font-medium text-text-secondary hover:bg-white/[0.04] hover:text-text-primary transition-all duration-150 group border border-transparent">
           <Settings size={16} className="text-text-muted group-hover:text-text-secondary transition-colors flex-shrink-0" />
           Settings
         </Link>
-
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-body font-medium text-text-secondary hover:bg-red-500/8 hover:text-danger transition-all duration-150 group border border-transparent w-full text-left cursor-pointer"
-        >
+        <button onClick={handleLogout}
+          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-body font-medium text-text-secondary hover:bg-red-500/[0.08] hover:text-danger transition-all duration-150 group border border-transparent w-full text-left cursor-pointer">
           <LogOut size={16} className="text-text-muted group-hover:text-danger transition-colors flex-shrink-0" />
           Sign out
         </button>
       </div>
-    </aside>
+    </div>
+  );
+}
+
+export function Sidebar() {
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const pathname = usePathname();
+
+  useEffect(() => { setMobileOpen(false); }, [pathname]);
+
+  return (
+    <>
+      {/* Desktop */}
+      <aside className="hidden lg:flex flex-col w-64 min-h-screen bg-surface border-r border-border/60 fixed left-0 top-0 bottom-0 z-40">
+        <SidebarContent />
+      </aside>
+
+      {/* Mobile hamburger */}
+      <button
+        onClick={() => setMobileOpen(true)}
+        className="lg:hidden fixed top-4 left-4 z-50 w-9 h-9 flex items-center justify-center rounded-xl bg-surface border border-border text-text-secondary hover:text-text-primary hover:border-primary-500/40 transition-all cursor-pointer shadow-card"
+        aria-label="Open navigation"
+      >
+        <Menu size={16} />
+      </button>
+
+      {/* Mobile drawer */}
+      {mobileOpen && (
+        <>
+          <div className="lg:hidden fixed inset-0 bg-canvas/70 backdrop-blur-sm z-40 animate-fade-in" onClick={() => setMobileOpen(false)} />
+          <aside className="lg:hidden fixed left-0 top-0 bottom-0 w-72 bg-surface border-r border-border z-50 flex flex-col animate-fade-up overflow-hidden">
+            <button onClick={() => setMobileOpen(false)}
+              className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-lg bg-card border border-border text-text-secondary hover:text-text-primary transition-all cursor-pointer z-10"
+              aria-label="Close navigation">
+              <X size={14} />
+            </button>
+            <SidebarContent onNavClick={() => setMobileOpen(false)} />
+          </aside>
+        </>
+      )}
+    </>
   );
 }
