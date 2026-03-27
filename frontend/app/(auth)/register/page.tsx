@@ -19,7 +19,14 @@ import { authApi } from "@/lib/api";
 import { useAuthStore } from "@/store/auth.store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { UserRole } from "@/types";
 
@@ -28,19 +35,19 @@ type Step = "role" | "credentials" | "profile";
 const ROLE_OPTIONS: { role: UserRole; icon: React.ReactNode; title: string; desc: string }[] = [
   {
     role: "patient",
-    icon: <User size={20} />,
+    icon: <User className="h-5 w-5" />,
     title: "Patient",
     desc: "Book appointments, view your medical records and bills",
   },
   {
     role: "doctor",
-    icon: <Stethoscope size={20} />,
+    icon: <Stethoscope className="h-5 w-5" />,
     title: "Doctor",
     desc: "Manage your schedule, patients and consultations",
   },
   {
     role: "admin",
-    icon: <UserCog size={20} />,
+    icon: <UserCog className="h-5 w-5" />,
     title: "Administrator",
     desc: "Full access to manage the clinic, staff and reports",
   },
@@ -65,13 +72,9 @@ export default function RegisterPage() {
     defaultValues: { role: "doctor" },
   });
 
-  // Use the correct form based on role
   const isDoctor = selectedRole === "doctor";
   const pErrors = patientForm.formState.errors;
   const dErrors = doctorForm.formState.errors;
-  const isSubmitting = isDoctor
-    ? doctorForm.formState.isSubmitting
-    : patientForm.formState.isSubmitting;
 
   const handleRoleSelect = (role: UserRole) => {
     setSelectedRole(role);
@@ -83,7 +86,7 @@ export default function RegisterPage() {
     const valid = isDoctor
       ? await doctorForm.trigger(fields)
       : await patientForm.trigger(fields);
-    if (valid) setStep(selectedRole === "admin" ? "credentials" : "profile");
+    if (valid) setStep("profile");
   };
 
   const submitAdmin = async () => {
@@ -142,29 +145,29 @@ export default function RegisterPage() {
   const stepIndex = step === "role" ? 0 : step === "credentials" ? 1 : 2;
 
   return (
-    <div className="animate-fade-up">
-      <div className="mb-7">
-        <h1 className="font-display font-bold text-3xl text-text-primary mb-2 tracking-tight">
+    <div className="animate-fade-up max-w-md mx-auto py-8 px-4">
+      <div className="mb-7 text-center">
+        <h1 className="font-display font-bold text-3xl text-foreground mb-2 tracking-tight">
           Create account
         </h1>
-        <p className="text-text-secondary text-sm">
+        <p className="text-muted-foreground text-sm">
           Join DACS — your clinic&apos;s healthcare platform
         </p>
       </div>
 
       {/* Step progress */}
-      <div className="flex items-center gap-2 mb-8">
+      <div className="flex items-center justify-center gap-2 mb-8">
         {steps.map((s, i) => (
           <div key={s} className="flex items-center gap-2">
             <div className={cn(
-              "flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium font-body transition-all duration-300",
-              i < stepIndex && "bg-primary-500/20 text-primary-400 border border-primary-500/30",
-              i === stepIndex && "bg-primary-500 text-white shadow-glow-sm",
-              i > stepIndex && "bg-surface text-text-muted border border-border",
+              "flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium transition-all duration-300",
+              i < stepIndex && "bg-primary/20 text-primary border border-primary/30",
+              i === stepIndex && "bg-primary text-primary-foreground shadow-md",
+              i > stepIndex && "bg-accent text-muted-foreground border border-border",
             )}>
               <span className={cn(
                 "w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold",
-                i < stepIndex && "bg-primary-400/30",
+                i < stepIndex && "bg-primary/30",
                 i === stepIndex && "bg-white/20",
                 i > stepIndex && "bg-border",
               )}>
@@ -173,24 +176,24 @@ export default function RegisterPage() {
               {s}
             </div>
             {i < steps.length - 1 && (
-              <ChevronRight size={12} className="text-text-muted" />
+              <ChevronRight size={12} className="text-muted-foreground" />
             )}
           </div>
         ))}
       </div>
 
       {serverError && (
-        <div className="mb-5 p-4 rounded-xl bg-red-950/40 border border-danger/30 flex items-start gap-3 animate-fade-in">
-          <div className="w-4 h-4 rounded-full bg-danger/20 border border-danger/40 flex items-center justify-center flex-shrink-0 mt-0.5">
-            <div className="w-1.5 h-1.5 rounded-full bg-danger" />
+        <div className="mb-5 p-4 rounded-xl bg-red-950/40 border border-red-500/30 flex items-start gap-3 animate-fade-in">
+          <div className="w-4 h-4 rounded-full bg-red-500/20 border border-red-500/40 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
           </div>
-          <p className="text-sm text-danger/90 font-body">{serverError}</p>
+          <p className="text-sm text-red-400">{serverError}</p>
         </div>
       )}
 
       {/* STEP 1 — Role */}
       {step === "role" && (
-        <div className="flex flex-col gap-3 stagger">
+        <div className="flex flex-col gap-3">
           {ROLE_OPTIONS.map(({ role, icon, title, desc }) => (
             <button
               key={role}
@@ -198,18 +201,17 @@ export default function RegisterPage() {
               className={cn(
                 "flex items-center gap-4 p-4 rounded-2xl border text-left",
                 "transition-all duration-150 cursor-pointer group",
-                "bg-surface border-border animate-fade-up opacity-0",
-                "hover:border-primary-500/50 hover:bg-card hover:shadow-card-hover",
+                "bg-card border-border hover:border-primary/50 hover:bg-accent",
               )}
             >
-              <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 bg-primary-500/10 border border-primary-500/20 text-primary-400 group-hover:bg-primary-500/20 transition-all">
+              <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 bg-primary/10 border border-primary/20 text-primary group-hover:bg-primary/20 transition-all">
                 {icon}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-display font-bold text-sm text-text-primary mb-0.5">{title}</p>
-                <p className="text-xs text-text-tertiary font-body leading-relaxed">{desc}</p>
+                <p className="font-display font-bold text-sm text-foreground mb-0.5">{title}</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">{desc}</p>
               </div>
-              <ArrowRight size={15} className="text-text-muted group-hover:text-primary-400 transition-all flex-shrink-0" />
+              <ArrowRight size={15} className="text-muted-foreground group-hover:text-primary transition-all flex-shrink-0" />
             </button>
           ))}
         </div>
@@ -218,61 +220,117 @@ export default function RegisterPage() {
       {/* STEP 2 — Credentials */}
       {step === "credentials" && (
         <div className="flex flex-col gap-4">
-          <Input
-            label="Email address"
-            type="email"
-            placeholder="you@clinic.com"
-            leftIcon={<Mail size={15} />}
-            error={isDoctor ? dErrors.email?.message : pErrors.email?.message}
-            {...(isDoctor ? doctorForm.register("email") : patientForm.register("email"))}
-          />
-          <Input
-            label="Phone number"
-            type="tel"
-            placeholder="+254 700 000 000"
-            leftIcon={<Phone size={15} />}
-            {...(isDoctor ? doctorForm.register("phone") : patientForm.register("phone"))}
-          />
-          <Input
-            label="Password"
-            type={showPassword ? "text" : "password"}
-            placeholder="Min. 6 characters"
-            leftIcon={<Lock size={15} />}
-            error={isDoctor ? dErrors.password?.message : pErrors.password?.message}
-            rightElement={
-              <button type="button" onClick={() => setShowPassword(!showPassword)}
-                className="text-text-tertiary hover:text-text-secondary transition-colors cursor-pointer" tabIndex={-1}>
-                {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+          {/* Email */}
+          <div className="space-y-2">
+            <Label htmlFor="email">Email address</Label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                id="email"
+                type="email"
+                placeholder="you@clinic.com"
+                className={cn(
+                  "pl-9",
+                  (isDoctor ? dErrors.email : pErrors.email) && "border-red-500 focus-visible:ring-red-500"
+                )}
+                {...(isDoctor ? doctorForm.register("email") : patientForm.register("email"))}
+              />
+            </div>
+            {(isDoctor ? dErrors.email?.message : pErrors.email?.message) && (
+              <p className="text-sm text-red-500">{isDoctor ? dErrors.email?.message : pErrors.email?.message}</p>
+            )}
+          </div>
+
+          {/* Phone */}
+          <div className="space-y-2">
+            <Label htmlFor="phone">Phone number</Label>
+            <div className="relative">
+              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                id="phone"
+                type="tel"
+                placeholder="+254 700 000 000"
+                className="pl-9"
+                {...(isDoctor ? doctorForm.register("phone") : patientForm.register("phone"))}
+              />
+            </div>
+          </div>
+
+          {/* Password */}
+          <div className="space-y-2">
+            <Label htmlFor="password">Password</Label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="Min. 6 characters"
+                className={cn(
+                  "pl-9 pr-9",
+                  (isDoctor ? dErrors.password : pErrors.password) && "border-red-500 focus-visible:ring-red-500"
+                )}
+                {...(isDoctor ? doctorForm.register("password") : patientForm.register("password"))}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
-            }
-            {...(isDoctor ? doctorForm.register("password") : patientForm.register("password"))}
-          />
-          <Input
-            label="Confirm password"
-            type={showConfirm ? "text" : "password"}
-            placeholder="Repeat your password"
-            leftIcon={<Lock size={15} />}
-            error={isDoctor ? dErrors.confirmPassword?.message : pErrors.confirmPassword?.message}
-            rightElement={
-              <button type="button" onClick={() => setShowConfirm(!showConfirm)}
-                className="text-text-tertiary hover:text-text-secondary transition-colors cursor-pointer" tabIndex={-1}>
-                {showConfirm ? <EyeOff size={15} /> : <Eye size={15} />}
+            </div>
+            {(isDoctor ? dErrors.password?.message : pErrors.password?.message) && (
+              <p className="text-sm text-red-500">{isDoctor ? dErrors.password?.message : pErrors.password?.message}</p>
+            )}
+          </div>
+
+          {/* Confirm Password */}
+          <div className="space-y-2">
+            <Label htmlFor="confirmPassword">Confirm password</Label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                id="confirmPassword"
+                type={showConfirm ? "text" : "password"}
+                placeholder="Repeat your password"
+                className={cn(
+                  "pl-9 pr-9",
+                  (isDoctor ? dErrors.confirmPassword : pErrors.confirmPassword) && "border-red-500 focus-visible:ring-red-500"
+                )}
+                {...(isDoctor ? doctorForm.register("confirmPassword") : patientForm.register("confirmPassword"))}
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirm(!showConfirm)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                tabIndex={-1}
+              >
+                {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
-            }
-            {...(isDoctor ? doctorForm.register("confirmPassword") : patientForm.register("confirmPassword"))}
-          />
+            </div>
+            {(isDoctor ? dErrors.confirmPassword?.message : pErrors.confirmPassword?.message) && (
+              <p className="text-sm text-red-500">{isDoctor ? dErrors.confirmPassword?.message : pErrors.confirmPassword?.message}</p>
+            )}
+          </div>
 
           <div className="flex gap-3 mt-2">
-            <Button variant="secondary" onClick={() => setStep("role")} className="flex-1">
-              <ArrowLeft size={15} /> Back
+            <Button variant="outline" onClick={() => setStep("role")} className="flex-1">
+              <ArrowLeft className="h-4 w-4 mr-1" /> Back
             </Button>
             {selectedRole === "admin" ? (
-              <Button className="flex-1 font-display font-bold" loading={isSubmitting} onClick={submitAdmin}>
-                Create account <ArrowRight size={15} />
+              <Button 
+                className="flex-1 font-display font-bold" 
+                disabled={patientForm.formState.isSubmitting}
+                onClick={submitAdmin}
+              >
+                {patientForm.formState.isSubmitting ? "Creating..." : "Create account"}
+                <ArrowRight className="h-4 w-4 ml-1" />
               </Button>
             ) : (
               <Button className="flex-1 font-display font-bold" onClick={handleCredentialsNext}>
-                Continue <ArrowRight size={15} />
+                Continue
+                <ArrowRight className="h-4 w-4 ml-1" />
               </Button>
             )}
           </div>
@@ -286,29 +344,93 @@ export default function RegisterPage() {
           {selectedRole === "patient" && (
             <form onSubmit={patientForm.handleSubmit(onPatientSubmit)} className="flex flex-col gap-4">
               <div className="grid grid-cols-2 gap-3">
-                <Input label="First name" placeholder="John" leftIcon={<User size={15} />}
-                  error={pErrors.firstName?.message} {...patientForm.register("firstName")} />
-                <Input label="Last name" placeholder="Doe"
-                  error={pErrors.lastName?.message} {...patientForm.register("lastName")} />
+                <div className="space-y-2">
+                  <Label htmlFor="firstName">First name</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="firstName"
+                      placeholder="John"
+                      className={cn("pl-9", pErrors.firstName && "border-red-500 focus-visible:ring-red-500")}
+                      {...patientForm.register("firstName")}
+                    />
+                  </div>
+                  {pErrors.firstName?.message && <p className="text-sm text-red-500">{pErrors.firstName.message}</p>}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="lastName">Last name</Label>
+                  <Input
+                    id="lastName"
+                    placeholder="Doe"
+                    className={pErrors.lastName && "border-red-500 focus-visible:ring-red-500"}
+                    {...patientForm.register("lastName")}
+                  />
+                  {pErrors.lastName?.message && <p className="text-sm text-red-500">{pErrors.lastName.message}</p>}
+                </div>
               </div>
-              <Input label="Date of birth" type="date"
-                error={pErrors.dateOfBirth?.message} {...patientForm.register("dateOfBirth")} />
-              <Select label="Gender" placeholder="Select gender"
-                options={[
-                  { value: "male", label: "Male" },
-                  { value: "female", label: "Female" },
-                  { value: "other", label: "Other" },
-                ]}
-                error={pErrors.gender?.message} {...patientForm.register("gender")} />
-              <Input label="National ID" placeholder="12345678" {...patientForm.register("nationalId")} />
-              <Input label="Insurance provider (optional)" placeholder="AAR Health, NHIF…" {...patientForm.register("insuranceProvider")} />
-              <Input label="Address (optional)" placeholder="123 Ngong Road, Nairobi" {...patientForm.register("address")} />
+
+              <div className="space-y-2">
+                <Label htmlFor="dateOfBirth">Date of birth</Label>
+                <Input
+                  id="dateOfBirth"
+                  type="date"
+                  className={pErrors.dateOfBirth && "border-red-500 focus-visible:ring-red-500"}
+                  {...patientForm.register("dateOfBirth")}
+                />
+                {pErrors.dateOfBirth?.message && <p className="text-sm text-red-500">{pErrors.dateOfBirth.message}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="gender">Gender</Label>
+                <Select
+                  onValueChange={(value) => patientForm.setValue("gender", value as "male" | "female" | "other")}
+                >
+                  <SelectTrigger className={pErrors.gender && "border-red-500 focus-visible:ring-red-500"}>
+                    <SelectValue placeholder="Select gender" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="male">Male</SelectItem>
+                    <SelectItem value="female">Female</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+                {pErrors.gender?.message && <p className="text-sm text-red-500">{pErrors.gender.message}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="nationalId">National ID</Label>
+                <Input
+                  id="nationalId"
+                  placeholder="12345678"
+                  {...patientForm.register("nationalId")}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="insuranceProvider">Insurance provider (optional)</Label>
+                <Input
+                  id="insuranceProvider"
+                  placeholder="AAR Health, NHIF…"
+                  {...patientForm.register("insuranceProvider")}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="address">Address (optional)</Label>
+                <Input
+                  id="address"
+                  placeholder="123 Ngong Road, Nairobi"
+                  {...patientForm.register("address")}
+                />
+              </div>
+
               <div className="flex gap-3 mt-2">
-                <Button variant="secondary" onClick={() => setStep("credentials")} className="flex-1">
-                  <ArrowLeft size={15} /> Back
+                <Button variant="outline" onClick={() => setStep("credentials")} className="flex-1">
+                  <ArrowLeft className="h-4 w-4 mr-1" /> Back
                 </Button>
-                <Button type="submit" loading={patientForm.formState.isSubmitting} className="flex-1 font-display font-bold">
-                  Create account <ArrowRight size={15} />
+                <Button type="submit" disabled={patientForm.formState.isSubmitting} className="flex-1 font-display font-bold">
+                  {patientForm.formState.isSubmitting ? "Creating..." : "Create account"}
+                  <ArrowRight className="h-4 w-4 ml-1" />
                 </Button>
               </div>
             </form>
@@ -318,24 +440,80 @@ export default function RegisterPage() {
           {selectedRole === "doctor" && (
             <form onSubmit={doctorForm.handleSubmit(onDoctorSubmit)} className="flex flex-col gap-4">
               <div className="grid grid-cols-2 gap-3">
-                <Input label="First name" placeholder="Sarah" leftIcon={<User size={15} />}
-                  error={dErrors.firstName?.message} {...doctorForm.register("firstName")} />
-                <Input label="Last name" placeholder="Kimani"
-                  error={dErrors.lastName?.message} {...doctorForm.register("lastName")} />
+                <div className="space-y-2">
+                  <Label htmlFor="firstName">First name</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="firstName"
+                      placeholder="Sarah"
+                      className={cn("pl-9", dErrors.firstName && "border-red-500 focus-visible:ring-red-500")}
+                      {...doctorForm.register("firstName")}
+                    />
+                  </div>
+                  {dErrors.firstName?.message && <p className="text-sm text-red-500">{dErrors.firstName.message}</p>}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="lastName">Last name</Label>
+                  <Input
+                    id="lastName"
+                    placeholder="Kimani"
+                    className={dErrors.lastName && "border-red-500 focus-visible:ring-red-500"}
+                    {...doctorForm.register("lastName")}
+                  />
+                  {dErrors.lastName?.message && <p className="text-sm text-red-500">{dErrors.lastName.message}</p>}
+                </div>
               </div>
-              <Input label="Specialization" placeholder="Cardiology, General Practice…"
-                leftIcon={<Stethoscope size={15} />} {...doctorForm.register("specialization")} />
-              <Input label="License number" placeholder="KMD-2024-001" {...doctorForm.register("licenseNumber")} />
-              <Input label="Department" placeholder="Internal Medicine" {...doctorForm.register("department")} />
-              <Input label="Consultation fee (KES)" type="number" placeholder="2500"
-                hint="Patients will see this when booking"
-                {...doctorForm.register("consultationFee")} />
+
+              <div className="space-y-2">
+                <Label htmlFor="specialization">Specialization</Label>
+                <div className="relative">
+                  <Stethoscope className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="specialization"
+                    placeholder="Cardiology, General Practice…"
+                    className="pl-9"
+                    {...doctorForm.register("specialization")}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="licenseNumber">License number</Label>
+                <Input
+                  id="licenseNumber"
+                  placeholder="KMD-2024-001"
+                  {...doctorForm.register("licenseNumber")}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="department">Department</Label>
+                <Input
+                  id="department"
+                  placeholder="Internal Medicine"
+                  {...doctorForm.register("department")}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="consultationFee">Consultation fee (KES)</Label>
+                <Input
+                  id="consultationFee"
+                  type="number"
+                  placeholder="2500"
+                  {...doctorForm.register("consultationFee")}
+                />
+                <p className="text-xs text-muted-foreground">Patients will see this when booking</p>
+              </div>
+
               <div className="flex gap-3 mt-2">
-                <Button variant="secondary" onClick={() => setStep("credentials")} className="flex-1">
-                  <ArrowLeft size={15} /> Back
+                <Button variant="outline" onClick={() => setStep("credentials")} className="flex-1">
+                  <ArrowLeft className="h-4 w-4 mr-1" /> Back
                 </Button>
-                <Button type="submit" loading={doctorForm.formState.isSubmitting} className="flex-1 font-display font-bold">
-                  Create account <ArrowRight size={15} />
+                <Button type="submit" disabled={doctorForm.formState.isSubmitting} className="flex-1 font-display font-bold">
+                  {doctorForm.formState.isSubmitting ? "Creating..." : "Create account"}
+                  <ArrowRight className="h-4 w-4 ml-1" />
                 </Button>
               </div>
             </form>
@@ -343,9 +521,9 @@ export default function RegisterPage() {
         </>
       )}
 
-      <p className="text-center text-sm text-text-secondary mt-7">
+      <p className="text-center text-sm text-muted-foreground mt-7">
         Already have an account?{" "}
-        <Link href="/login" className="text-primary-400 hover:text-primary-300 font-medium transition-colors">
+        <Link href="/login" className="text-primary hover:text-primary/80 font-medium transition-colors">
           Sign in
         </Link>
       </p>

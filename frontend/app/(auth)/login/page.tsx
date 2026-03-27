@@ -46,84 +46,84 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="animate-fade-up">
+    <div className="animate-fade-up max-w-md mx-auto py-8 px-4">
       <div className="mb-8 text-center">
-        <h1 className="font-display font-bold text-3xl text-text-primary mb-2 tracking-tight">
+        <h1 className="font-display font-bold text-3xl text-foreground mb-2 tracking-tight">
           Welcome back
         </h1>
-        <p className="text-text-secondary text-sm">
+        <p className="text-muted-foreground text-sm">
           Sign in to your DACS account
         </p>
       </div>
 
       {serverError && (
-        <div className="mb-6 p-4 rounded-xl bg-red-950/40 border border-danger/30 flex items-start gap-3 animate-fade-in">
-          <div className="w-4 h-4 rounded-full bg-danger/20 border border-danger/40 flex items-center justify-center flex-shrink-0 mt-0.5">
-            <div className="w-1.5 h-1.5 rounded-full bg-danger" />
+        <div className="mb-6 p-4 rounded-xl bg-red-950/40 border border-red-500/30 flex items-start gap-3 animate-fade-in">
+          <div className="w-4 h-4 rounded-full bg-red-500/20 border border-red-500/40 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
           </div>
-          <p className="text-sm text-danger/90 font-body">{serverError}</p>
+          <p className="text-sm text-red-400">{serverError}</p>
         </div>
       )}
 
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
         {/* Email Field */}
         <div className="space-y-2">
-          <Label htmlFor="email" className="text-text-secondary">
+          <Label htmlFor="email" className="text-muted-foreground">
             Email address
           </Label>
           <div className="relative">
-            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-tertiary" />
+            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               id="email"
               type="email"
               placeholder="you@clinic.com"
               className={cn(
                 "pl-9",
-                errors.email && "border-danger focus-visible:ring-danger"
+                errors.email && "border-red-500 focus-visible:ring-red-500"
               )}
               {...register("email")}
             />
           </div>
           {errors.email && (
-            <p className="text-sm text-danger">{errors.email.message}</p>
+            <p className="text-sm text-red-500">{errors.email.message}</p>
           )}
         </div>
 
         {/* Password Field */}
         <div className="space-y-2">
-          <Label htmlFor="password" className="text-text-secondary">
+          <Label htmlFor="password" className="text-muted-foreground">
             Password
           </Label>
           <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-tertiary" />
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               id="password"
               type={showPassword ? "text" : "password"}
               placeholder="Enter your password"
               className={cn(
                 "pl-9 pr-9",
-                errors.password && "border-danger focus-visible:ring-danger"
+                errors.password && "border-red-500 focus-visible:ring-red-500"
               )}
               {...register("password")}
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-text-secondary transition-colors"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
               tabIndex={-1}
             >
               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           </div>
           {errors.password && (
-            <p className="text-sm text-danger">{errors.password.message}</p>
+            <p className="text-sm text-red-500">{errors.password.message}</p>
           )}
         </div>
 
         <div className="flex justify-end">
           <Link
             href="/forgot-password"
-            className="text-sm text-primary-400 hover:text-primary-300 transition-colors"
+            className="text-sm text-primary hover:text-primary/80 transition-colors"
           >
             Forgot password?
           </Link>
@@ -139,11 +139,11 @@ export default function LoginPage() {
         </Button>
       </form>
 
-      <p className="text-center text-sm text-text-secondary mt-7">
+      <p className="text-center text-sm text-muted-foreground mt-7">
         Don&apos;t have an account?{" "}
         <Link
           href="/register"
-          className="text-primary-400 hover:text-primary-300 font-medium transition-colors"
+          className="text-primary hover:text-primary/80 font-medium transition-colors"
         >
           Create account
         </Link>
