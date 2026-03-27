@@ -1,0 +1,112 @@
+:root {
+  --font-syne: var(--font-syne);
+  --font-dm-sans: var(--font-dm-sans);
+  --font-dm-mono: var(--font-dm-mono);
+
+  /* Spacing scale */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 40px;
+}
+
+/* Rest of your CSS remains exactly the same */
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  background-color: #070B14;
+  color: #F1F5F9;
+  font-family: var(--font-dm-sans);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #1F2937; border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: #374151; }
+
+/* Focus ring */
+*:focus-visible {
+  outline: 2px solid #6366F1;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Selection */
+::selection {
+  background: rgba(99, 102, 241, 0.3);
+  color: #E0E7FF;
+}
+
+/* Grain overlay for depth */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+  opacity: 0.025;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* Animations */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-6px); }
+}
+
+.animate-fade-up    { animation: fade-up 0.5s ease-out forwards; }
+.animate-fade-in    { animation: fade-in 0.4s ease-out forwards; }
+
+/* Staggered children */
+.stagger > *:nth-child(1) { animation-delay: 0ms; }
+.stagger > *:nth-child(2) { animation-delay: 60ms; }
+.stagger > *:nth-child(3) { animation-delay: 120ms; }
+.stagger > *:nth-child(4) { animation-delay: 180ms; }
+.stagger > *:nth-child(5) { animation-delay: 240ms; }
+
+/* Glow helpers */
+.glow-indigo { box-shadow: 0 0 40px rgba(99,102,241,0.2); }
+.glow-teal   { box-shadow: 0 0 30px rgba(20,184,166,0.15); }
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, #a5b4fc 0%, #818cf8 50%, #6366f1 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.gradient-text-teal {
+  background: linear-gradient(135deg, #5eead4 0%, #2dd4bf 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
