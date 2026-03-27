@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 :root {
   --font-syne: var(--font-syne);
   --font-dm-sans: var(--font-dm-sans);
