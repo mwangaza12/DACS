@@ -120,14 +120,15 @@ export const fetchDoctorAvailability = async (doctorId: string) => {
 
 export const fetchDoctorById =  async (doctorId: string) => {
   const res = await api.get(`/doctors/${doctorId}`);
-  return res.data.data as Array<{
+  return res.data.data as {
     doctorId: string;
     firstName: string;
     lastName: string;
     specialization: string | null;
     department: string | null;
     consultationFee: string | null;
-  }>;
+    licenseNumber: string | null
+  };
 }
 
 export const updateDoctorAvailability =  async (doctorId: string, data: AvailabilitySlot[]) => {
@@ -307,4 +308,36 @@ export const fetchAllNotifications = async (page = 1, limit = 30) => {
 export const markNotificationRead = async (id: string) => {
   const res = await api.put(`/notifications/${id}/read`);
   return res.data.data;
+};
+
+// ── Reports ───────────────────────────────────────────────────────────────────
+export const fetchReportAppointments = async (from?: string, to?: string) => {
+  const res = await api.get("/reports/appointments", { params: { from, to } });
+  return res.data.data as Array<{ status: string; total: number }>;
+};
+
+export const fetchReportRevenue = async (from?: string, to?: string) => {
+  const res = await api.get("/reports/revenue", { params: { from, to } });
+  return res.data.data as {
+    totalRevenue: string | null;
+    totalPaid: string | null;
+    totalInsurance: string | null;
+    billCount: number;
+  };
+};
+
+export const fetchReportNoShow = async (from?: string, to?: string) => {
+  const res = await api.get("/reports/no-show", { params: { from, to } });
+  return res.data.data as {
+    noShows: number;
+    total: number;
+    rate: string;
+  };
+};
+
+export const fetchReportDemographics = async () => {
+  const res = await api.get("/reports/patient-demographics");
+  return res.data.data as {
+    byGender: Array<{ gender: string; total: number }>;
+  };
 };

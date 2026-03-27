@@ -13,6 +13,7 @@ import medicalRecordsRouter from "./medical-records/medical-records.routes";
 import billingRouter from "./billing/billing.routes";
 import reportsRouter from "./reports/reports.routes";
 import notificationsRouter from "./notifications/notifications.routes";
+import cors from "cors"
 
 dotenv.config();
 
@@ -23,6 +24,7 @@ export const db = drizzle({ connection: process.env.DATABASE_URL!, casing: 'snak
 const app = express();
 
 // Global Middleware
+app.use(cors());
 app.use(express.json());
 app.use(logger);
 
