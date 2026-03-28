@@ -22,11 +22,20 @@ interface AuthStore {
   setTokens: (accessToken: string) => void;
   clearAuth: () => void;
 
-  // Derived helpers
   isAdmin: () => boolean;
   isDoctor: () => boolean;
   isPatient: () => boolean;
   displayName: () => string;
+}
+
+/** Write a lightweight cookie readable by Next.js middleware (no httpOnly). */
+function setAuthCookie(role: string) {
+  const maxAge = 60 * 60 * 24 * 7; // 7 days
+  document.cookie = `dacs_auth_role=${role}; path=/; max-age=${maxAge}; SameSite=Lax`;
+}
+
+function clearAuthCookie() {
+  document.cookie = "dacs_auth_role=; path=/; max-age=0; SameSite=Lax";
 }
 
 export const useAuthStore = create<AuthStore>()(
@@ -39,9 +48,11 @@ export const useAuthStore = create<AuthStore>()(
       isAuthenticated: false,
 
       setAuth: ({ user, profile, accessToken, refreshToken }) => {
-        // Also store tokens in localStorage for axios interceptors
+        // 1. Store tokens for axios interceptor
         localStorage.setItem("dacs_access_token", accessToken);
         localStorage.setItem("dacs_refresh_token", refreshToken);
+        // 2. Set cookie for Next.js middleware (edge-readable, not httpOnly)
+        setAuthCookie(user.role);
 
         set({ user, profile, accessToken, refreshToken, isAuthenticated: true });
       },
@@ -53,6 +64,7 @@ export const useAuthStore = create<AuthStore>()(
 
       clearAuth: () => {
         clearAuthTokens();
+        clearAuthCookie();
         set({
           user: null,
           profile: null,
@@ -62,8 +74,8 @@ export const useAuthStore = create<AuthStore>()(
         });
       },
 
-      isAdmin: () => get().user?.role === "admin",
-      isDoctor: () => get().user?.role === "doctor",
+      isAdmin:   () => get().user?.role === "admin",
+      isDoctor:  () => get().user?.role === "doctor",
       isPatient: () => get().user?.role === "patient",
 
       displayName: () => {
@@ -76,8 +88,6 @@ export const useAuthStore = create<AuthStore>()(
     {
       name: "dacs_auth",
       storage: createJSONStorage(() => localStorage),
-      // Don't persist the full token — we handle that manually so the axios
-      // interceptors always read from localStorage["dacs_access_token"] directly
       partialize: (state) => ({
         user: state.user,
         profile: state.profile,
@@ -85,6 +95,15 @@ export const useAuthStore = create<AuthStore>()(
         refreshToken: state.refreshToken,
         isAuthenticated: state.isAuthenticated,
       }),
+      // Re-sync cookie when store rehydrates from localStorage on page load
+      onRehydrateStorage: () => (state) => {
+        if (state?.user?.role && state.isAuthenticated) {
+          setAuthCookie(state.user.role);
+          // Also restore tokens to localStorage keys that axios reads
+          if (state.accessToken)  localStorage.setItem("dacs_access_token",  state.accessToken);
+          if (state.refreshToken) localStorage.setItem("dacs_refresh_token", state.refreshToken);
+        }
+      },
     }
   )
 );

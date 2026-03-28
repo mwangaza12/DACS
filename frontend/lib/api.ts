@@ -8,7 +8,7 @@ export const api = axios.create({
   timeout: 15000,
 });
 
-// ── Request interceptor — attach access token ──────────────────────────────
+// ── Request interceptor — attach access token ─────────────────────────────────
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   if (typeof window !== "undefined") {
     const token = localStorage.getItem("dacs_access_token");
@@ -19,17 +19,17 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   return config;
 });
 
-// ── Response interceptor — auto-refresh on 401 ────────────────────────────
+// ── Response interceptor — auto-refresh on 401 ───────────────────────────────
 let isRefreshing = false;
 let failedQueue: Array<{
   resolve: (value: unknown) => void;
-  reject: (reason?: unknown) => void;
+  reject:  (reason?: unknown) => void;
 }> = [];
 
 const processQueue = (error: AxiosError | null, token: string | null = null) => {
   failedQueue.forEach(({ resolve, reject }) => {
     if (error) reject(error);
-    else resolve(token);
+    else       resolve(token);
   });
   failedQueue = [];
 };
@@ -41,7 +41,6 @@ api.interceptors.response.use(
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       if (isRefreshing) {
-        // Queue this request while refresh is in progress
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         }).then((token) => {
@@ -77,8 +76,8 @@ api.interceptors.response.use(
 
         processQueue(null, accessToken);
         isRefreshing = false;
-
         return api(originalRequest);
+
       } catch (refreshError) {
         processQueue(refreshError as AxiosError, null);
         isRefreshing = false;
@@ -95,23 +94,18 @@ api.interceptors.response.use(
 export const clearAuthTokens = () => {
   localStorage.removeItem("dacs_access_token");
   localStorage.removeItem("dacs_refresh_token");
-  localStorage.removeItem("dacs_user");
+  localStorage.removeItem("dacs_auth");
+  // Also clear the middleware cookie
+  if (typeof document !== "undefined") {
+    document.cookie = "dacs_auth_role=; path=/; max-age=0; SameSite=Lax";
+  }
 };
 
-// ── Typed API helpers ──────────────────────────────────────────────────────
+// ── Typed API helpers ─────────────────────────────────────────────────────────
 export const authApi = {
-  login: (data: { email: string; password: string }) =>
-    api.post("/auth/login", data),
-
-  register: (data: unknown) =>
-    api.post("/auth/register", data),
-
-  refresh: (refreshToken: string) =>
-    api.post("/auth/refresh", { refreshToken }),
-
-  logout: () =>
-    api.post("/auth/logout"),
-
-  forgotPassword: (email: string) =>
-    api.post("/auth/forgot-password", { email }),
+  login:          (data: { email: string; password: string }) => api.post("/auth/login", data),
+  register:       (data: unknown) => api.post("/auth/register", data),
+  refresh:        (refreshToken: string) => api.post("/auth/refresh", { refreshToken }),
+  logout:         () => api.post("/auth/logout"),
+  forgotPassword: (email: string) => api.post("/auth/forgot-password", { email }),
 };
