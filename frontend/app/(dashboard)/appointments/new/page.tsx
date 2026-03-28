@@ -7,8 +7,13 @@ import { createAppointment } from "@/lib/queries";
 import { DoctorPicker } from "@/components/appointments/doctor-picker";
 import { SlotPicker } from "@/components/appointments/slot-picker";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useAuthStore } from "@/store/auth.store";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, ArrowRight, CheckCircle, ChevronRight, Calendar, Stethoscope, Clock, ClipboardList } from "lucide-react";
@@ -26,7 +31,7 @@ const STEPS: { id: Step; label: string; icon: React.ReactNode }[] = [
 
 export default function NewAppointmentPage() {
   const router = useRouter();
-  const { user, isPatient } = useAuthStore();
+  const { user } = useAuthStore();
   const queryClient = useQueryClient();
 
   const [step, setStep] = useState<Step>("doctor");
@@ -164,14 +169,24 @@ export default function NewAppointmentPage() {
               <h3 className="font-display font-bold text-base text-text-primary mb-1">Pick a date & time</h3>
               <p className="text-sm text-text-tertiary font-body">Choose from the available slots</p>
             </div>
-            <Input
-              label="Appointment date"
-              type="date"
-              value={date}
-              onChange={(e) => { setDate(e.target.value); setSlot(""); }}
-              min={format(new Date(), "yyyy-MM-dd")}
-              leftIcon={<Calendar size={15} />}
-            />
+            
+            {/* Custom date input with icon */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-text-secondary uppercase tracking-wider font-body flex items-center gap-1.5">
+                <Calendar size={12} /> Appointment date
+              </label>
+              <div className="relative">
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
+                <input
+                  type="date"
+                  value={date}
+                  onChange={(e) => { setDate(e.target.value); setSlot(""); }}
+                  min={format(new Date(), "yyyy-MM-dd")}
+                  className="w-full bg-surface border border-border rounded-xl pl-9 pr-4 py-2.5 text-sm text-text-primary font-body placeholder:text-text-muted focus:outline-none focus:border-primary-500/60 focus:ring-2 focus:ring-primary-500/20 transition-all"
+                />
+              </div>
+            </div>
+            
             {date && (
               <div className="flex flex-col gap-2">
                 <label className="text-xs font-medium text-text-secondary uppercase tracking-wider font-body flex items-center gap-1.5">
@@ -195,12 +210,26 @@ export default function NewAppointmentPage() {
               <h3 className="font-display font-bold text-base text-text-primary mb-1">Appointment details</h3>
               <p className="text-sm text-text-tertiary font-body">Tell us a bit more about your visit</p>
             </div>
-            <Select
-              label="Appointment type"
-              value={apptType}
-              onChange={(e) => setApptType(e.target.value)}
-              options={APPOINTMENT_TYPES.map((t) => ({ value: t, label: TYPE_LABELS[t] }))}
-            />
+            
+            {/* Updated Select component */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-text-secondary uppercase tracking-wider font-body">
+                Appointment type
+              </label>
+              <Select value={apptType} onValueChange={setApptType}>
+                <SelectTrigger className="w-full bg-surface border border-border rounded-xl px-4 py-2.5 text-sm text-text-primary font-body">
+                  <SelectValue placeholder="Select appointment type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {APPOINTMENT_TYPES.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {TYPE_LABELS[type]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-text-secondary uppercase tracking-wider font-body">
                 Reason for visit
@@ -241,7 +270,7 @@ export default function NewAppointmentPage() {
                 { icon: <Stethoscope size={14} />, label: "Doctor",   value: `Doctor ID: ${doctorId.slice(0, 16)}…` },
                 { icon: <Calendar size={14} />,    label: "Date",     value: date },
                 { icon: <Clock size={14} />,       label: "Time",     value: slot ? `${slot.slice(0,5)} – ${endTime.slice(0,5)}` : "—" },
-                { icon: <ClipboardList size={14} />, label: "Type",   value: TYPE_LABELS[apptType] ?? apptType },
+                { icon: <ClipboardList size={14} />, label: "Type",   value: TYPE_LABELS[apptType as keyof typeof TYPE_LABELS] ?? apptType },
                 ...(reason ? [{ icon: <ClipboardList size={14} />, label: "Reason", value: reason }] : []),
               ].map(({ icon, label, value }) => (
                 <div key={label} className="flex items-start gap-3 p-3 rounded-xl bg-surface border border-border/60">
@@ -282,10 +311,19 @@ export default function NewAppointmentPage() {
           ) : (
             <Button
               onClick={handleSubmit}
-              loading={mutation.isPending}
+              disabled={mutation.isPending}
               className="flex-1 font-display font-bold"
             >
-              Confirm booking <CheckCircle size={14} />
+              {mutation.isPending ? (
+                <>
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  Confirming...
+                </>
+              ) : (
+                <>
+                  Confirm booking <CheckCircle size={14} />
+                </>
+              )}
             </Button>
           )}
         </div>

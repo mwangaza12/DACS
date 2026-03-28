@@ -1,34 +1,41 @@
+// proxy.ts   ← Rename your file to this
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/register", "/forgot-password"];
+const PUBLIC_PATHS = [
+  "/",                    // Home page
+  "/about",
+  "/contact",
+  "/login",
+  "/register",
+  "/forgot-password",
+];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
-  const isRoot   = pathname === "/";
+  const isPublicPath = PUBLIC_PATHS.some((path) => 
+    pathname === path || pathname.startsWith(path)
+  );
 
-  // Read the lightweight auth cookie set by the client-side auth store
   const authCookie = request.cookies.get("dacs_auth_role")?.value;
   const isAuthenticated = !!authCookie;
 
-  // Redirect root
-  if (isRoot) {
-    return NextResponse.redirect(
-      new URL(isAuthenticated ? "/dashboard" : "/login", request.url)
-    );
+  // === Root path: Always show the public landing page ===
+  if (pathname === "/") {
+    return NextResponse.next();
   }
 
-  // Allow public paths — but bounce authenticated users away from auth pages
-  if (isPublic) {
-    if (isAuthenticated) {
+  // === Public paths (login, about, contact, etc.) ===
+  if (isPublicPath) {
+    // If already logged in, don't let them access login/register pages
+    if (isAuthenticated && (pathname === "/login" || pathname === "/register")) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
     return NextResponse.next();
   }
 
-  // Protected paths — require authentication
+  // === Protected routes (dashboard and everything else) ===
   if (!isAuthenticated) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("from", pathname);

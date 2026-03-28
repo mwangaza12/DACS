@@ -1,35 +1,22 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Syne, DM_Sans, DM_Mono } from "next/font/google";
+import { DM_Sans, Lora, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { QueryProvider } from "@/components/providers/query-provider";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const fontSans = DM_Sans({
   subsets: ["latin"],
+  variable: "--font-sans",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const fontSerif = Lora({
   subsets: ["latin"],
+  variable: "--font-serif",
 });
 
-const syne = Syne({
-  variable: "--font-syne",
+const fontMono = IBM_Plex_Mono({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-});
-
-const dmSans = DM_Sans({
-  variable: "--font-dm-sans",
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600"],
-  style: ["normal", "italic"],
-});
-
-const dmMono = DM_Mono({
-  variable: "--font-dm-mono",
-  subsets: ["latin"],
-  weight: ["400", "500"],
+  variable: "--font-mono",
+  weight: "100"
 });
 
 export const metadata: Metadata = {
@@ -45,7 +32,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${syne.variable} ${dmSans.variable} ${dmMono.variable} h-full antialiased`}
+      className={`${fontSans.variable} ${fontSerif.variable} ${fontMono.variable} antialiased`}
     >
       <body className="min-h-full">
         <QueryProvider>

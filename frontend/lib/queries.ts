@@ -1,7 +1,7 @@
 import { AvailabilitySlot } from "@/app/(dashboard)/doctors/[id]/page";
 import { api } from "./api";
 
-// ── Dashboard ─────────────────────────────────────────────────────────────────
+// Dashboard
 export const fetchDashboardMetrics = async () => {
   const res = await api.get("/dashboard/metrics");
   return res.data.data as {
@@ -22,7 +22,7 @@ export const fetchKpis = async () => {
   }>;
 };
 
-// ── Reports ───────────────────────────────────────────────────────────────────
+// Reports
 export const fetchAppointmentReport = async (from?: string, to?: string) => {
   const res = await api.get("/reports/appointments", { params: { from, to } });
   return res.data.data as Array<{ status: string; total: number }>;
@@ -54,7 +54,7 @@ export const fetchPatientDemographics = async () => {
   };
 };
 
-// ── Appointments ──────────────────────────────────────────────────────────────
+// Appointments
 export const fetchAppointments = async (params?: {
   page?: number;
   limit?: number;
@@ -78,7 +78,7 @@ export const fetchAppointments = async (params?: {
   }>;
 };
 
-// ── Notifications ─────────────────────────────────────────────────────────────
+// Notifications
 export const fetchNotifications = async () => {
   const res = await api.get("/notifications", { params: { limit: 5 } });
   return res.data.data as Array<{
@@ -92,7 +92,7 @@ export const fetchNotifications = async () => {
   }>;
 };
 
-// ── Doctors (for booking) ─────────────────────────────────────────────────────
+// Doctors (for booking)
 export const fetchDoctors = async (page = 1, limit = 50) => {
   const res = await api.get("/doctors", { params: { page, limit } });
   return res.data.data as Array<{
@@ -161,7 +161,7 @@ export const fetchAppointmentById = async (id: string) => {
   };
 };
 
-// ── Mutations ─────────────────────────────────────────────────────────────────
+// Mutations
 export const createAppointment = async (data: {
   patientId: string;
   doctorId: string;
@@ -186,7 +186,7 @@ export const cancelAppointment = async (id: string, reason?: string) => {
   return res.data.data;
 };
 
-// ── Patients (for admin/doctor views) ────────────────────────────────────────
+// Patients (for admin/doctor views) 
 export const fetchPatients = async (page = 1, limit = 20) => {
   const res = await api.get("/patients", { params: { page, limit } });
   return res.data.data as Array<{
@@ -209,7 +209,7 @@ export const fetchPatientById = async (id: string) => {
   return res.data.data;
 };
 
-// ── Medical records ───────────────────────────────────────────────────────────
+// Medical records 
 export const fetchMedicalRecords = async (patientId?: string, page = 1, limit = 20) => {
   const res = await api.get("/medical-records", { params: { patientId, page, limit } });
   return res.data.data as Array<{
@@ -252,7 +252,7 @@ export const updateMedicalRecord = async (id: string, data: Record<string, unkno
   return res.data.data;
 };
 
-// ── Billing ───────────────────────────────────────────────────────────────────
+// Billing
 export const fetchBills = async (patientId?: string, page = 1, limit = 20) => {
   const res = await api.get("/bills", { params: { patientId, page, limit } });
   return res.data.data as Array<{
@@ -289,7 +289,7 @@ export const fetchInsuranceClaims = async () => {
   return res.data.data;
 };
 
-// ── Notifications ─────────────────────────────────────────────────────────────
+// Notifications 
 export const fetchAllNotifications = async (page = 1, limit = 30) => {
   const res = await api.get("/notifications", { params: { page, limit } });
   return res.data.data as Array<{
@@ -310,7 +310,7 @@ export const markNotificationRead = async (id: string) => {
   return res.data.data;
 };
 
-// ── Reports ───────────────────────────────────────────────────────────────────
+// Reports
 export const fetchReportAppointments = async (from?: string, to?: string) => {
   const res = await api.get("/reports/appointments", { params: { from, to } });
   return res.data.data as Array<{ status: string; total: number }>;
