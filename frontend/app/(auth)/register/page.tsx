@@ -150,7 +150,7 @@ export default function RegisterPage() {
     <>
       <Navbar />
       <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-background to-muted/20">
-        <Card className="w-full max-w-md">
+        <Card className="w-full max-w-md animate-fade-up">
           <CardHeader className="space-y-1 text-center">
             <CardTitle className="text-3xl font-bold">Create account</CardTitle>
             <CardDescription>
@@ -159,7 +159,7 @@ export default function RegisterPage() {
           </CardHeader>
           <CardContent>
             {/* Step progress */}
-            <div className="flex items-center justify-center gap-2 mb-8">
+            <div className="flex items-center justify-center gap-2 mb-8 animate-fade-in">
               {steps.map((s, i) => (
                 <div key={s} className="flex items-center gap-2">
                   <div className={cn(
@@ -186,35 +186,35 @@ export default function RegisterPage() {
             </div>
 
             {serverError && (
-              <div className="mb-5 p-4 rounded-lg bg-red-950/10 dark:bg-red-950/30 border border-red-500/30 flex items-start gap-3">
+              <div className="mb-5 p-4 rounded-xl bg-red-950/40 border border-red-500/30 flex items-start gap-3 animate-fade-in">
                 <div className="w-4 h-4 rounded-full bg-red-500/20 border border-red-500/40 flex items-center justify-center flex-shrink-0 mt-0.5">
                   <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
                 </div>
-                <p className="text-sm text-red-600 dark:text-red-400">{serverError}</p>
+                <p className="text-sm text-red-400">{serverError}</p>
               </div>
             )}
 
             {/* STEP 1 — Role */}
             {step === "role" && (
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-3 animate-fade-in">
                 {ROLE_OPTIONS.map(({ role, icon, title, desc }) => (
                   <button
                     key={role}
                     onClick={() => handleRoleSelect(role)}
                     className={cn(
-                      "flex items-center gap-4 p-4 rounded-xl border text-left",
-                      "transition-all duration-150 cursor-pointer group",
+                      "flex items-center gap-4 p-4 rounded-2xl border text-left",
+                      "transition-all duration-300 cursor-pointer group hover:scale-105",
                       "bg-card border-border hover:border-primary/50 hover:bg-accent",
                     )}
                   >
-                    <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 bg-primary/10 border border-primary/20 text-primary group-hover:bg-primary/20 transition-all">
+                    <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 bg-primary/10 border border-primary/20 text-primary group-hover:bg-primary/20 transition-all duration-300">
                       {icon}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm text-foreground mb-0.5">{title}</p>
+                      <p className="font-display font-bold text-sm text-foreground mb-0.5">{title}</p>
                       <p className="text-xs text-muted-foreground leading-relaxed">{desc}</p>
                     </div>
-                    <ArrowRight size={15} className="text-muted-foreground group-hover:text-primary transition-all flex-shrink-0" />
+                    <ArrowRight size={15} className="text-muted-foreground group-hover:text-primary transition-all duration-300 group-hover:translate-x-1" />
                   </button>
                 ))}
               </div>
@@ -222,7 +222,7 @@ export default function RegisterPage() {
 
             {/* STEP 2 — Credentials */}
             {step === "credentials" && (
-              <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-4 animate-fade-in">
                 {/* Email */}
                 <div className="space-y-2">
                   <Label htmlFor="email">Email address</Label>
@@ -233,14 +233,14 @@ export default function RegisterPage() {
                       type="email"
                       placeholder="you@clinic.com"
                       className={cn(
-                        "pl-9",
+                        "pl-9 transition-all duration-300",
                         (isDoctor ? dErrors.email : pErrors.email) && "border-red-500 focus-visible:ring-red-500"
                       )}
                       {...(isDoctor ? doctorForm.register("email") : patientForm.register("email"))}
                     />
                   </div>
                   {(isDoctor ? dErrors.email?.message : pErrors.email?.message) && (
-                    <p className="text-sm text-red-500">{isDoctor ? dErrors.email?.message : pErrors.email?.message}</p>
+                    <p className="text-sm text-red-500 animate-fade-in">{isDoctor ? dErrors.email?.message : pErrors.email?.message}</p>
                   )}
                 </div>
 
@@ -253,7 +253,7 @@ export default function RegisterPage() {
                       id="phone"
                       type="tel"
                       placeholder="+254 700 000 000"
-                      className="pl-9"
+                      className="pl-9 transition-all duration-300"
                       {...(isDoctor ? doctorForm.register("phone") : patientForm.register("phone"))}
                     />
                   </div>
@@ -269,7 +269,7 @@ export default function RegisterPage() {
                       type={showPassword ? "text" : "password"}
                       placeholder="Min. 6 characters"
                       className={cn(
-                        "pl-9 pr-9",
+                        "pl-9 pr-9 transition-all duration-300",
                         (isDoctor ? dErrors.password : pErrors.password) && "border-red-500 focus-visible:ring-red-500"
                       )}
                       {...(isDoctor ? doctorForm.register("password") : patientForm.register("password"))}
@@ -277,14 +277,14 @@ export default function RegisterPage() {
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-all duration-300"
                       tabIndex={-1}
                     >
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
                   {(isDoctor ? dErrors.password?.message : pErrors.password?.message) && (
-                    <p className="text-sm text-red-500">{isDoctor ? dErrors.password?.message : pErrors.password?.message}</p>
+                    <p className="text-sm text-red-500 animate-fade-in">{isDoctor ? dErrors.password?.message : pErrors.password?.message}</p>
                   )}
                 </div>
 
@@ -298,7 +298,7 @@ export default function RegisterPage() {
                       type={showConfirm ? "text" : "password"}
                       placeholder="Repeat your password"
                       className={cn(
-                        "pl-9 pr-9",
+                        "pl-9 pr-9 transition-all duration-300",
                         (isDoctor ? dErrors.confirmPassword : pErrors.confirmPassword) && "border-red-500 focus-visible:ring-red-500"
                       )}
                       {...(isDoctor ? doctorForm.register("confirmPassword") : patientForm.register("confirmPassword"))}
@@ -306,24 +306,24 @@ export default function RegisterPage() {
                     <button
                       type="button"
                       onClick={() => setShowConfirm(!showConfirm)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-all duration-300"
                       tabIndex={-1}
                     >
                       {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
                   {(isDoctor ? dErrors.confirmPassword?.message : pErrors.confirmPassword?.message) && (
-                    <p className="text-sm text-red-500">{isDoctor ? dErrors.confirmPassword?.message : pErrors.confirmPassword?.message}</p>
+                    <p className="text-sm text-red-500 animate-fade-in">{isDoctor ? dErrors.confirmPassword?.message : pErrors.confirmPassword?.message}</p>
                   )}
                 </div>
 
                 <div className="flex gap-3 mt-2">
-                  <Button variant="outline" onClick={() => setStep("role")} className="flex-1">
+                  <Button variant="outline" onClick={() => setStep("role")} className="flex-1 transition-all duration-300 hover:scale-105">
                     <ArrowLeft className="h-4 w-4 mr-1" /> Back
                   </Button>
                   {selectedRole === "admin" ? (
                     <Button 
-                      className="flex-1 font-semibold" 
+                      className="flex-1 font-semibold transition-all duration-300 hover:scale-105" 
                       disabled={patientForm.formState.isSubmitting}
                       onClick={submitAdmin}
                     >
@@ -331,7 +331,7 @@ export default function RegisterPage() {
                       <ArrowRight className="h-4 w-4 ml-1" />
                     </Button>
                   ) : (
-                    <Button className="flex-1 font-semibold" onClick={handleCredentialsNext}>
+                    <Button className="flex-1 font-semibold transition-all duration-300 hover:scale-105" onClick={handleCredentialsNext}>
                       Continue
                       <ArrowRight className="h-4 w-4 ml-1" />
                     </Button>
@@ -345,7 +345,7 @@ export default function RegisterPage() {
               <>
                 {/* Patient */}
                 {selectedRole === "patient" && (
-                  <form onSubmit={patientForm.handleSubmit(onPatientSubmit)} className="flex flex-col gap-4">
+                  <form onSubmit={patientForm.handleSubmit(onPatientSubmit)} className="flex flex-col gap-4 animate-fade-in">
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-2">
                         <Label htmlFor="firstName">First name</Label>
@@ -354,21 +354,21 @@ export default function RegisterPage() {
                           <Input
                             id="firstName"
                             placeholder="John"
-                            className={cn("pl-9", pErrors.firstName && "border-red-500 focus-visible:ring-red-500")}
+                            className={cn("pl-9 transition-all duration-300", pErrors.firstName && "border-red-500 focus-visible:ring-red-500")}
                             {...patientForm.register("firstName")}
                           />
                         </div>
-                        {pErrors.firstName?.message && <p className="text-sm text-red-500">{pErrors.firstName.message}</p>}
+                        {pErrors.firstName?.message && <p className="text-sm text-red-500 animate-fade-in">{pErrors.firstName.message}</p>}
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="lastName">Last name</Label>
                         <Input
                           id="lastName"
                           placeholder="Doe"
-                          className={pErrors.lastName && "border-red-500 focus-visible:ring-red-500"}
+                          className={cn("transition-all duration-300", pErrors.lastName && "border-red-500 focus-visible:ring-red-500")}
                           {...patientForm.register("lastName")}
                         />
-                        {pErrors.lastName?.message && <p className="text-sm text-red-500">{pErrors.lastName.message}</p>}
+                        {pErrors.lastName?.message && <p className="text-sm text-red-500 animate-fade-in">{pErrors.lastName.message}</p>}
                       </div>
                     </div>
 
@@ -377,10 +377,10 @@ export default function RegisterPage() {
                       <Input
                         id="dateOfBirth"
                         type="date"
-                        className={pErrors.dateOfBirth && "border-red-500 focus-visible:ring-red-500"}
+                        className={cn("transition-all duration-300", pErrors.dateOfBirth && "border-red-500 focus-visible:ring-red-500")}
                         {...patientForm.register("dateOfBirth")}
                       />
-                      {pErrors.dateOfBirth?.message && <p className="text-sm text-red-500">{pErrors.dateOfBirth.message}</p>}
+                      {pErrors.dateOfBirth?.message && <p className="text-sm text-red-500 animate-fade-in">{pErrors.dateOfBirth.message}</p>}
                     </div>
 
                     <div className="space-y-2">
@@ -388,7 +388,7 @@ export default function RegisterPage() {
                       <Select
                         onValueChange={(value) => patientForm.setValue("gender", value as "male" | "female" | "other")}
                       >
-                        <SelectTrigger className={pErrors.gender && "border-red-500 focus-visible:ring-red-500"}>
+                        <SelectTrigger className={cn("transition-all duration-300", pErrors.gender && "border-red-500 focus-visible:ring-red-500")}>
                           <SelectValue placeholder="Select gender" />
                         </SelectTrigger>
                         <SelectContent>
@@ -397,7 +397,7 @@ export default function RegisterPage() {
                           <SelectItem value="other">Other</SelectItem>
                         </SelectContent>
                       </Select>
-                      {pErrors.gender?.message && <p className="text-sm text-red-500">{pErrors.gender.message}</p>}
+                      {pErrors.gender?.message && <p className="text-sm text-red-500 animate-fade-in">{pErrors.gender.message}</p>}
                     </div>
 
                     <div className="space-y-2">
@@ -405,6 +405,7 @@ export default function RegisterPage() {
                       <Input
                         id="nationalId"
                         placeholder="12345678"
+                        className="transition-all duration-300"
                         {...patientForm.register("nationalId")}
                       />
                     </div>
@@ -414,6 +415,7 @@ export default function RegisterPage() {
                       <Input
                         id="insuranceProvider"
                         placeholder="AAR Health, NHIF…"
+                        className="transition-all duration-300"
                         {...patientForm.register("insuranceProvider")}
                       />
                     </div>
@@ -423,15 +425,16 @@ export default function RegisterPage() {
                       <Input
                         id="address"
                         placeholder="123 Ngong Road, Nairobi"
+                        className="transition-all duration-300"
                         {...patientForm.register("address")}
                       />
                     </div>
 
                     <div className="flex gap-3 mt-2">
-                      <Button variant="outline" onClick={() => setStep("credentials")} className="flex-1">
+                      <Button variant="outline" onClick={() => setStep("credentials")} className="flex-1 transition-all duration-300 hover:scale-105">
                         <ArrowLeft className="h-4 w-4 mr-1" /> Back
                       </Button>
-                      <Button type="submit" disabled={patientForm.formState.isSubmitting} className="flex-1 font-semibold">
+                      <Button type="submit" disabled={patientForm.formState.isSubmitting} className="flex-1 font-semibold transition-all duration-300 hover:scale-105">
                         {patientForm.formState.isSubmitting ? "Creating..." : "Create account"}
                         <ArrowRight className="h-4 w-4 ml-1" />
                       </Button>
@@ -441,7 +444,7 @@ export default function RegisterPage() {
 
                 {/* Doctor */}
                 {selectedRole === "doctor" && (
-                  <form onSubmit={doctorForm.handleSubmit(onDoctorSubmit)} className="flex flex-col gap-4">
+                  <form onSubmit={doctorForm.handleSubmit(onDoctorSubmit)} className="flex flex-col gap-4 animate-fade-in">
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-2">
                         <Label htmlFor="firstName">First name</Label>
@@ -450,21 +453,21 @@ export default function RegisterPage() {
                           <Input
                             id="firstName"
                             placeholder="Sarah"
-                            className={cn("pl-9", dErrors.firstName && "border-red-500 focus-visible:ring-red-500")}
+                            className={cn("pl-9 transition-all duration-300", dErrors.firstName && "border-red-500 focus-visible:ring-red-500")}
                             {...doctorForm.register("firstName")}
                           />
                         </div>
-                        {dErrors.firstName?.message && <p className="text-sm text-red-500">{dErrors.firstName.message}</p>}
+                        {dErrors.firstName?.message && <p className="text-sm text-red-500 animate-fade-in">{dErrors.firstName.message}</p>}
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="lastName">Last name</Label>
                         <Input
                           id="lastName"
                           placeholder="Kimani"
-                          className={dErrors.lastName && "border-red-500 focus-visible:ring-red-500"}
+                          className={cn("transition-all duration-300", dErrors.lastName && "border-red-500 focus-visible:ring-red-500")}
                           {...doctorForm.register("lastName")}
                         />
-                        {dErrors.lastName?.message && <p className="text-sm text-red-500">{dErrors.lastName.message}</p>}
+                        {dErrors.lastName?.message && <p className="text-sm text-red-500 animate-fade-in">{dErrors.lastName.message}</p>}
                       </div>
                     </div>
 
@@ -475,7 +478,7 @@ export default function RegisterPage() {
                         <Input
                           id="specialization"
                           placeholder="Cardiology, General Practice…"
-                          className="pl-9"
+                          className="pl-9 transition-all duration-300"
                           {...doctorForm.register("specialization")}
                         />
                       </div>
@@ -486,6 +489,7 @@ export default function RegisterPage() {
                       <Input
                         id="licenseNumber"
                         placeholder="KMD-2024-001"
+                        className="transition-all duration-300"
                         {...doctorForm.register("licenseNumber")}
                       />
                     </div>
@@ -495,6 +499,7 @@ export default function RegisterPage() {
                       <Input
                         id="department"
                         placeholder="Internal Medicine"
+                        className="transition-all duration-300"
                         {...doctorForm.register("department")}
                       />
                     </div>
@@ -505,16 +510,17 @@ export default function RegisterPage() {
                         id="consultationFee"
                         type="number"
                         placeholder="2500"
+                        className="transition-all duration-300"
                         {...doctorForm.register("consultationFee")}
                       />
                       <p className="text-xs text-muted-foreground">Patients will see this when booking</p>
                     </div>
 
                     <div className="flex gap-3 mt-2">
-                      <Button variant="outline" onClick={() => setStep("credentials")} className="flex-1">
+                      <Button variant="outline" onClick={() => setStep("credentials")} className="flex-1 transition-all duration-300 hover:scale-105">
                         <ArrowLeft className="h-4 w-4 mr-1" /> Back
                       </Button>
-                      <Button type="submit" disabled={doctorForm.formState.isSubmitting} className="flex-1 font-semibold">
+                      <Button type="submit" disabled={doctorForm.formState.isSubmitting} className="flex-1 font-semibold transition-all duration-300 hover:scale-105">
                         {doctorForm.formState.isSubmitting ? "Creating..." : "Create account"}
                         <ArrowRight className="h-4 w-4 ml-1" />
                       </Button>
@@ -524,9 +530,9 @@ export default function RegisterPage() {
               </>
             )}
 
-            <p className="text-center text-sm text-muted-foreground mt-7">
+            <p className="text-center text-sm text-muted-foreground mt-7 animate-fade-in">
               Already have an account?{" "}
-              <Link href="/login" className="text-primary hover:text-primary/80 font-medium transition-colors">
+              <Link href="/login" className="text-primary hover:text-primary/80 font-medium transition-all duration-300 hover:scale-105 inline-block">
                 Sign in
               </Link>
             </p>
