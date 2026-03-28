@@ -8,7 +8,6 @@ import {
     updateMedicalRecordService,
     uploadPatientDocumentService,
 } from "./medical-records.service";
-import { AuthRequest } from "../middlewares/auth.middleware";
 
 export const getAllMedicalRecordsController = async (req: Request, res: Response) => {
     const { patientId, page, limit } = req.query as Record<string, string>;
@@ -41,7 +40,7 @@ export const updateMedicalRecordController = async (req: Request, res: Response)
     return success(res, updated, "Medical record updated successfully");
 };
 
-export const uploadDocumentController = async (req: AuthRequest, res: Response) => {
+export const uploadDocumentController = async (req: Request, res: Response) => {
     const { patientId, documentType, fileName, filePath } = req.body;
 
     if (!patientId || !fileName || !filePath) {

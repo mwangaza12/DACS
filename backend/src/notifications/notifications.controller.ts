@@ -6,9 +6,8 @@ import {
     markNotificationReadService,
     sendNotificationService,
 } from "./notifications.service";
-import { AuthRequest } from "../middlewares/auth.middleware";
 
-export const getUserNotificationsController = async (req: AuthRequest, res: Response) => {
+export const getUserNotificationsController = async (req: Request, res: Response) => {
     const userId = req.user!.userId;
     const { page, limit } = req.query as Record<string, string>;
     const data = await getUserNotificationsService(userId, Number(page) || 1, Number(limit) || 20);
