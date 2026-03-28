@@ -15,7 +15,14 @@ import {
 } from "./appointments.service";
 
 export const getAllAppointmentsController = async (req: Request, res: Response) => {
-    const { patientId, doctorId, status, page, limit } = req.query as Record<string, string>;
+    const { status, page, limit } = req.query as Record<string, string>;
+    const role = req.user?.role;
+    const userId = req.user?.userId;
+
+    // Patients can only ever see their own appointments
+    const patientId = role === "patient" ? userId : req.query.patientId as string;
+    const doctorId  = role === "doctor"  ? userId : req.query.doctorId as string;
+
     const data = await getAllAppointmentsService({
         patientId,
         doctorId,
@@ -23,6 +30,7 @@ export const getAllAppointmentsController = async (req: Request, res: Response) 
         page: Number(page) || 1,
         limit: Number(limit) || 10,
     });
+
     return success(res, data, "Appointments retrieved successfully");
 };
 
