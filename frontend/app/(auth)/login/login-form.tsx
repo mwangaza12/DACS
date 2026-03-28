@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { Navbar } from "@/components/navbar";
+import FooterSection from "@/components/footer";
 
 export default function LoginPage() {
   const router       = useRouter();
@@ -156,6 +157,7 @@ export default function LoginPage() {
           </CardContent>
         </Card>
       </div>
+      <FooterSection />
     </>
   );
 }

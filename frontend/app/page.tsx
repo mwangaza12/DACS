@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Calendar, Clock, Stethoscope, UserCircle, ArrowRight, Star, Shield, Heart } from "lucide-react";
 import Link from "next/link";
 import { Navbar } from "@/components/navbar";
+import FooterSection from "@/components/footer";
 
 export default function HomePage() {
   return (
@@ -109,6 +110,7 @@ export default function HomePage() {
           </div>
         </section>
       </div>
+      <FooterSection />
     </>
   );
 }

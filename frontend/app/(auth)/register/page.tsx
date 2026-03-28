@@ -31,6 +31,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { cn } from "@/lib/utils";
 import { UserRole } from "@/types";
 import { Navbar } from "@/components/navbar";
+import FooterSection from "@/components/footer";
 
 type Step = "role" | "credentials" | "profile";
 
@@ -539,6 +540,7 @@ export default function RegisterPage() {
           </CardContent>
         </Card>
       </div>
+      <FooterSection />
     </>
   );
 }

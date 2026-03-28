@@ -1,18 +1,16 @@
 import type { Metadata } from "next";
-import { Poppins, Ubuntu_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { QueryProvider } from "@/components/providers/query-provider";
 
-const fontSans = Poppins({
+const fontSans = Inter({
   subsets: ["latin"],
   variable: "--font-sans",
-  weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
 });
 
-const fontMono = Ubuntu_Mono({
+const fontMono = JetBrains_Mono({
   subsets: ["latin"],
   variable: "--font-mono",
-  weight: ["400", "700"],
 });
 
 export const metadata: Metadata = {

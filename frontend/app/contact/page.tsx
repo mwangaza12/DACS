@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { Mail, MapPin, Phone, Clock, Send } from "lucide-react";
 import { Navbar } from "@/components/navbar";
+import FooterSection from "@/components/footer";
 
 export default function ContactPage() {
   const [formData, setFormData] = useState({
@@ -214,6 +215,7 @@ export default function ContactPage() {
           </div>
         </div>
       </div>
+      <FooterSection />
     </>
   );
 }

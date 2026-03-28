@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Navbar } from "@/components/navbar";
+import FooterSection from "@/components/footer";
 
 // Define the schema directly if not available
 const forgotPasswordSchema = z.object({
@@ -145,6 +146,7 @@ export default function ForgotPasswordPage() {
           </CardContent>
         </Card>
       </div>
+      <FooterSection />
     </>
   );
 }

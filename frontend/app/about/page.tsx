@@ -2,6 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Heart, Users, Target, Award, Stethoscope, Clock } from "lucide-react";
 import { Navbar } from "@/components/navbar";
+import FooterSection from "@/components/footer";
 
 export default function AboutPage() {
   return (
@@ -111,6 +112,7 @@ export default function AboutPage() {
           </div>
         </div>
       </div>
+      <FooterSection />
     </>
   );
 }
