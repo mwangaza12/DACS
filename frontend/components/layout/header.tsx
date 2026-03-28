@@ -3,6 +3,7 @@
 import { Bell, Search } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useAuthStore } from "@/store/auth.store";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 
 const PAGE_TITLES: Record<string, string> = {
   "/dashboard":      "Dashboard",
@@ -30,15 +31,18 @@ export function Header() {
 
   return (
     <header className="h-16 flex items-center justify-between px-6 border-b border-border/60 bg-surface/80 backdrop-blur-sm sticky top-0 z-30">
-      <div>
-        <h1 className="font-display font-bold text-lg text-text-primary leading-none tracking-tight">
-          {title}
-        </h1>
-        {pathname === "/dashboard" && (
-          <p className="text-xs text-text-tertiary font-body mt-0.5">
-            {greeting}, {displayName().split(" ")[0]}
-          </p>
-        )}
+      <div className="flex items-center gap-3">
+        <SidebarTrigger className="hover:bg-accent transition-colors" />
+        <div>
+          <h1 className="font-display font-bold text-lg text-text-primary leading-none tracking-tight">
+            {title}
+          </h1>
+          {pathname === "/dashboard" && (
+            <p className="text-xs text-text-tertiary font-body mt-0.5">
+              {greeting}, {displayName().split(" ")[0]}
+            </p>
+          )}
+        </div>
       </div>
 
       <div className="flex items-center gap-2">

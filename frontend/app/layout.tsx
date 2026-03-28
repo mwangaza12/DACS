@@ -1,22 +1,18 @@
 import type { Metadata } from "next";
-import { DM_Sans, Lora, IBM_Plex_Mono } from "next/font/google";
+import { Poppins, Ubuntu_Mono } from "next/font/google";
 import "./globals.css";
 import { QueryProvider } from "@/components/providers/query-provider";
 
-const fontSans = DM_Sans({
+const fontSans = Poppins({
   subsets: ["latin"],
   variable: "--font-sans",
+  weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
 });
 
-const fontSerif = Lora({
-  subsets: ["latin"],
-  variable: "--font-serif",
-});
-
-const fontMono = IBM_Plex_Mono({
+const fontMono = Ubuntu_Mono({
   subsets: ["latin"],
   variable: "--font-mono",
-  weight: "100"
+  weight: ["400", "700"],
 });
 
 export const metadata: Metadata = {
@@ -32,13 +28,11 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${fontSans.variable} ${fontSerif.variable} ${fontMono.variable} antialiased`}
+      className={`${fontSans.variable} ${fontMono.variable} antialiased`}
     >
-      <body className="min-h-full">
+      <body className="min-h-full font-sans">
         <QueryProvider>
-          <main className="relative z-10 min-h-screen">
-            {children}
-          </main>
+        {children}
         </QueryProvider>
       </body>
     </html>
