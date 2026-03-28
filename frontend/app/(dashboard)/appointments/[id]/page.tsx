@@ -65,6 +65,7 @@ export default function AppointmentDetailPage() {
       queryClient.invalidateQueries({ queryKey: ["appointment", id] });
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
       setShowCancelInput(false);
+      setCancelReason("");
     },
   });
 
@@ -75,7 +76,7 @@ export default function AppointmentDetailPage() {
     <div className="max-w-2xl mx-auto animate-fade-up">
       <div className="flex items-center gap-3 mb-6">
         <Button variant="ghost" size="sm" onClick={() => router.back()}>
-          <ArrowLeft size={14} /> Back
+          <ArrowLeft className="h-4 w-4 mr-1" /> Back
         </Button>
         <div className="h-4 w-px bg-border" />
         <h2 className="font-display font-bold text-lg text-text-primary tracking-tight">Appointment details</h2>
@@ -143,9 +144,9 @@ export default function AppointmentDetailPage() {
 
           {/* Cancellation reason */}
           {appt.appointmentStatus === "cancelled" && appt.cancellationReason && (
-            <div className="rounded-2xl bg-danger/5 border border-danger/20 p-5">
-              <p className="text-[11px] text-danger/60 font-body uppercase tracking-wider mb-1.5">Cancellation reason</p>
-              <p className="text-sm text-danger/80 font-body">{appt.cancellationReason}</p>
+            <div className="rounded-2xl bg-red-500/5 border border-red-500/20 p-5">
+              <p className="text-[11px] text-red-500/60 font-body uppercase tracking-wider mb-1.5">Cancellation reason</p>
+              <p className="text-sm text-red-500/80 font-body">{appt.cancellationReason}</p>
             </div>
           )}
 
@@ -154,47 +155,61 @@ export default function AppointmentDetailPage() {
             <div className="rounded-2xl bg-card border border-border p-5">
               <p className="text-xs font-medium text-text-secondary font-body mb-3">Update status</p>
               <div className="flex flex-wrap gap-2">
-                {transitions.map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => s === "cancelled" ? setShowCancelInput(true) : updateMutation.mutate({ appointmentStatus: s })}
-                    disabled={updateMutation.isPending}
-                    className={cn(
-                      "flex items-center gap-1.5 px-3 py-2 rounded-xl border text-sm font-medium font-body transition-all cursor-pointer disabled:opacity-50",
-                      s === "cancelled" || s === "no_show"
-                        ? "bg-danger/10 text-danger border-danger/20 hover:bg-danger/20"
-                        : s === "completed"
-                        ? "bg-success/10 text-success border-success/20 hover:bg-success/20"
-                        : "bg-primary-500/10 text-primary-400 border-primary-500/20 hover:bg-primary-500/20",
-                    )}
-                  >
-                    {STATUS_ICONS[s]}
-                    {STATUS_LABELS[s]}
-                  </button>
-                ))}
+                {transitions.map((s) => {
+                  let variant: "default" | "destructive" | "outline" | "secondary" | "ghost" = "default";
+                  let className = "";
+                  
+                  if (s === "cancelled" || s === "no_show") {
+                    variant = "destructive";
+                    className = "bg-red-500/10 text-red-500 hover:bg-red-500/20";
+                  } else if (s === "completed") {
+                    variant = "default";
+                    className = "bg-green-500/10 text-green-500 hover:bg-green-500/20";
+                  } else {
+                    variant = "secondary";
+                  }
+                  
+                  return (
+                    <Button
+                      key={s}
+                      variant={variant}
+                      size="sm"
+                      onClick={() => s === "cancelled" ? setShowCancelInput(true) : updateMutation.mutate({ appointmentStatus: s })}
+                      disabled={updateMutation.isPending}
+                      className={cn("flex items-center gap-1.5", className)}
+                    >
+                      {STATUS_ICONS[s]}
+                      {STATUS_LABELS[s]}
+                    </Button>
+                  );
+                })}
               </div>
             </div>
           )}
 
           {/* Cancel form */}
           {showCancelInput && (
-            <div className="rounded-2xl bg-danger/5 border border-danger/20 p-5 flex flex-col gap-3">
-              <p className="text-sm font-medium text-danger font-body">Cancel appointment</p>
+            <div className="rounded-2xl bg-red-500/5 border border-red-500/20 p-5 flex flex-col gap-3">
+              <p className="text-sm font-medium text-red-500 font-body">Cancel appointment</p>
               <textarea
                 value={cancelReason}
                 onChange={(e) => setCancelReason(e.target.value)}
                 placeholder="Reason for cancellation (optional)…"
                 rows={3}
-                className="w-full bg-surface border border-border rounded-xl px-3 py-2.5 text-sm text-text-primary font-body placeholder:text-text-muted resize-none focus:outline-none focus:border-danger/50 focus:ring-2 focus:ring-danger/20"
+                className="w-full bg-surface border border-border rounded-xl px-3 py-2.5 text-sm text-text-primary font-body placeholder:text-text-muted resize-none focus:outline-none focus:border-red-500/50 focus:ring-2 focus:ring-red-500/20"
               />
               <div className="flex gap-2">
-                <Button variant="ghost" size="sm" onClick={() => setShowCancelInput(false)} className="flex-1">
+                <Button variant="outline" size="sm" onClick={() => setShowCancelInput(false)} className="flex-1">
                   Back
                 </Button>
-                <Button variant="danger" size="sm" loading={cancelMutation.isPending}
-                  onClick={() => cancelMutation.mutate(cancelReason)} className="flex-1">
-                  Confirm cancellation
+                <Button 
+                  variant="destructive" 
+                  size="sm" 
+                  disabled={cancelMutation.isPending}
+                  onClick={() => cancelMutation.mutate(cancelReason)} 
+                  className="flex-1"
+                >
+                  {cancelMutation.isPending ? "Cancelling..." : "Confirm cancellation"}
                 </Button>
               </div>
             </div>
