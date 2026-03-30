@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Navbar } from "@/components/navbar";
 import FooterSection from "@/components/footer";
 
-// ─── HEADER / HERO ────────────────────────────────────────────────────────────
+// HEADER / HERO
 const Header = () => {
   return (
     <div className="mb-16">
@@ -78,7 +78,7 @@ const Header = () => {
   );
 };
 
-// ─── CONTENT / FEATURES ───────────────────────────────────────────────────────
+// CONTENT / FEATURES
 const Content = () => {
   const items = [
     {
@@ -133,7 +133,7 @@ const Content = () => {
   );
 };
 
-// ─── STEPS ────────────────────────────────────────────────────────────────────
+// STEPS 
 const Step = () => {
   const steps = [
     {
@@ -218,7 +218,7 @@ const Step = () => {
   );
 };
 
-// ─── STATISTICS ───────────────────────────────────────────────────────────────
+// STATISTICS 
 const Statistic = () => {
   const stats = [
     { value: "500+", label: "Expert Doctors", body: "Board-certified specialists across 20+ medical fields." },
@@ -247,7 +247,7 @@ const Statistic = () => {
   );
 };
 
-// ─── BLOG / HEALTH TIPS ───────────────────────────────────────────────────────
+// BLOG / HEALTH TIPS 
 const Blog = () => {
   const posts = [
     {
@@ -335,7 +335,7 @@ const Blog = () => {
   );
 };
 
-// ─── PAGE ─────────────────────────────────────────────────────────────────────
+// PAGE 
 export default function HomePage() {
   return (
     <>
