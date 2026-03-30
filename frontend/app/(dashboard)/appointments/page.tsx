@@ -6,7 +6,6 @@ import {
   useReactTable,
   getCoreRowModel,
   getSortedRowModel,
-  getFilteredRowModel,
   flexRender,
   ColumnDef,
   SortingState,
@@ -20,7 +19,7 @@ import { cn } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
 import {
   Plus, Search, ChevronUp, ChevronDown, ChevronsUpDown,
-  SlidersHorizontal, Calendar,
+  SlidersHorizontal, Calendar, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { APPOINTMENT_STATUSES, APPOINTMENT_TYPES, STATUS_LABELS, TYPE_LABELS } from "@/lib/appointment-utils";
 
@@ -38,17 +37,63 @@ type ApptRow = {
   createdAt: string;
 };
 
-export default function AppointmentsPage() {
-  const [sorting, setSorting] = useState<SortingState>([]);
-  const [globalFilter, setGlobalFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [typeFilter, setTypeFilter] = useState("all");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+// Adjust this to match your API response shape.
+// If your API returns { data: ApptRow[], total: number } wrap fetchAppointments accordingly.
+// If it just returns ApptRow[], set total from data.length and disable server pagination.
+type AppointmentsResponse = {
+  data: ApptRow[];
+  total: number;   // total records matching the current filters (for page count)
+} | ApptRow[];     // fallback: plain array → client-side page count not available
 
-  const { data: appointments, isLoading } = useQuery({
-    queryKey: ["appointments", "list"],
-    queryFn: () => fetchAppointments({ limit: 100, page: 1 }),
+const PAGE_SIZE = 15;
+
+function isPagedResponse(r: AppointmentsResponse): r is { data: ApptRow[]; total: number } {
+  return !Array.isArray(r) && "data" in r;
+}
+
+export default function AppointmentsPage() {
+  const [sorting, setSorting]         = useState<SortingState>([]);
+  const [page, setPage]               = useState(1);
+  const [search, setSearch]           = useState("");
+  const [debouncedSearch, setDebounced] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [typeFilter, setTypeFilter]   = useState("all");
+  const [selectedId, setSelectedId]   = useState<string | null>(null);
+
+  // Debounce search so we don't fire a request on every keystroke
+  const handleSearchChange = (val: string) => {
+    setSearch(val);
+    setPage(1);
+    clearTimeout((handleSearchChange as any)._t);
+    (handleSearchChange as any)._t = setTimeout(() => setDebounced(val), 350);
+  };
+
+  const handleFilterChange = (setter: (v: string) => void) => (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setter(e.target.value);
+    setPage(1); // reset to page 1 whenever a filter changes
+  };
+
+  // All filter state is passed to the query — server does the work
+  const queryParams = {
+    page,
+    limit: PAGE_SIZE,
+    ...(debouncedSearch  && { search: debouncedSearch }),
+    ...(statusFilter !== "all" && { status: statusFilter }),
+    ...(typeFilter   !== "all" && { type: typeFilter }),
+  };
+
+  const { data: raw, isLoading, isFetching } = useQuery({
+    queryKey: ["appointments", "list", queryParams],
+    queryFn: () => fetchAppointments(queryParams),
+    placeholderData: (prev) => prev, // keep previous data visible while fetching next page
   });
+
+  // Normalise: support both { data, total } and plain array responses
+  const rows: ApptRow[]  = raw ? (isPagedResponse(raw) ? raw.data : raw) : [];
+  const total: number    = raw ? (isPagedResponse(raw) ? raw.total : (raw as ApptRow[]).length) : 0;
+  const totalPages       = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const hasPrev          = page > 1;
+  const hasNext          = page < totalPages;
 
   const columns = useMemo<ColumnDef<ApptRow>[]>(
     () => [
@@ -105,33 +150,19 @@ export default function AppointmentsPage() {
     []
   );
 
-  // Client-side filtering
-  const filtered = useMemo(() => {
-    let rows = appointments ?? [];
-    if (statusFilter !== "all") rows = rows.filter((r) => r.appointmentStatus === statusFilter);
-    if (typeFilter !== "all")   rows = rows.filter((r) => r.appointmentType === typeFilter);
-    if (globalFilter) {
-      const q = globalFilter.toLowerCase();
-      rows = rows.filter(
-        (r) =>
-          r.appointmentDate.includes(q) ||
-          r.reason?.toLowerCase().includes(q) ||
-          r.appointmentType.includes(q) ||
-          r.appointmentStatus.includes(q)
-      );
-    }
-    return rows;
-  }, [appointments, statusFilter, typeFilter, globalFilter]);
-
   const table = useReactTable({
-    data: filtered,
+    data: rows,
     columns,
     state: { sorting },
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
+    // ⚠️ No getFilteredRowModel — filtering is server-side now
+    manualFiltering: true,
+    manualPagination: true,
   });
+
+  const isStale = !isLoading && isFetching; // page transition in progress
 
   return (
     <>
@@ -143,8 +174,8 @@ export default function AppointmentsPage() {
             <div className="flex items-center gap-2 h-9 px-3 rounded-xl bg-card border border-border text-text-tertiary focus-within:border-primary-500/50 focus-within:ring-2 focus-within:ring-primary-500/20 transition-all">
               <Search size={13} className="flex-shrink-0" />
               <input
-                value={globalFilter}
-                onChange={(e) => setGlobalFilter(e.target.value)}
+                value={search}
+                onChange={(e) => handleSearchChange(e.target.value)}
                 placeholder="Search appointments…"
                 className="bg-transparent text-sm text-text-primary placeholder:text-text-muted outline-none w-48 font-body"
               />
@@ -155,7 +186,7 @@ export default function AppointmentsPage() {
               <SlidersHorizontal size={12} className="absolute left-2.5 text-text-tertiary pointer-events-none" />
               <select
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                onChange={handleFilterChange(setStatusFilter)}
                 className="h-9 pl-7 pr-3 rounded-xl bg-card border border-border text-sm text-text-secondary font-body appearance-none cursor-pointer focus:outline-none focus:border-primary-500/50"
               >
                 <option value="all">All statuses</option>
@@ -170,7 +201,7 @@ export default function AppointmentsPage() {
               <Calendar size={12} className="absolute left-2.5 text-text-tertiary pointer-events-none" />
               <select
                 value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
+                onChange={handleFilterChange(setTypeFilter)}
                 className="h-9 pl-7 pr-3 rounded-xl bg-card border border-border text-sm text-text-secondary font-body appearance-none cursor-pointer focus:outline-none focus:border-primary-500/50"
               >
                 <option value="all">All types</option>
@@ -188,11 +219,14 @@ export default function AppointmentsPage() {
 
         {/* Count */}
         <p className="text-xs text-text-tertiary font-body -mt-2">
-          {isLoading ? "Loading…" : `${filtered.length} appointment${filtered.length !== 1 ? "s" : ""}`}
+          {isLoading
+            ? "Loading…"
+            : `${total} appointment${total !== 1 ? "s" : ""}${total > PAGE_SIZE ? ` · page ${page} of ${totalPages}` : ""}`
+          }
         </p>
 
         {/* Table */}
-        <div className="rounded-2xl border border-border overflow-hidden">
+        <div className={cn("rounded-2xl border border-border overflow-hidden transition-opacity duration-150", isStale && "opacity-60")}>
           <table className="w-full">
             <thead>
               {table.getHeaderGroups().map((hg) => (
@@ -223,7 +257,7 @@ export default function AppointmentsPage() {
             </thead>
             <tbody>
               {isLoading
-                ? Array.from({ length: 6 }).map((_, i) => (
+                ? Array.from({ length: PAGE_SIZE }).map((_, i) => (
                     <tr key={i} className="border-b border-border/60">
                       {columns.map((_, ci) => (
                         <td key={ci} className="px-4 py-3">
@@ -257,6 +291,69 @@ export default function AppointmentsPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination controls — only shown when there's more than one page */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between pt-1">
+            {/* Page number pills */}
+            <div className="flex items-center gap-1">
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                // Show: first, last, current ±1, and ellipsis gaps
+                .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+                .reduce<(number | "…")[]>((acc, p, idx, arr) => {
+                  if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push("…");
+                  acc.push(p);
+                  return acc;
+                }, [])
+                .map((p, i) =>
+                  p === "…" ? (
+                    <span key={`ellipsis-${i}`} className="px-1 text-xs text-text-muted font-body select-none">…</span>
+                  ) : (
+                    <button
+                      key={p}
+                      onClick={() => setPage(p as number)}
+                      className={cn(
+                        "h-7 min-w-[28px] px-2 rounded-lg text-xs font-medium font-body transition-colors",
+                        p === page
+                          ? "bg-primary-500/20 text-primary-400 border border-primary-500/30"
+                          : "text-text-tertiary hover:text-text-secondary hover:bg-card border border-transparent"
+                      )}
+                    >
+                      {p}
+                    </button>
+                  )
+                )}
+            </div>
+
+            {/* Prev / Next */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={!hasPrev || isFetching}
+                className={cn(
+                  "flex items-center gap-1 h-7 px-2.5 rounded-lg text-xs font-medium font-body border transition-colors",
+                  hasPrev && !isFetching
+                    ? "border-border text-text-secondary hover:bg-card hover:text-text-primary cursor-pointer"
+                    : "border-transparent text-text-muted cursor-not-allowed opacity-40"
+                )}
+              >
+                <ChevronLeft size={13} /> Prev
+              </button>
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={!hasNext || isFetching}
+                className={cn(
+                  "flex items-center gap-1 h-7 px-2.5 rounded-lg text-xs font-medium font-body border transition-colors",
+                  hasNext && !isFetching
+                    ? "border-border text-text-secondary hover:bg-card hover:text-text-primary cursor-pointer"
+                    : "border-transparent text-text-muted cursor-not-allowed opacity-40"
+                )}
+              >
+                Next <ChevronRight size={13} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <AppointmentDrawer
