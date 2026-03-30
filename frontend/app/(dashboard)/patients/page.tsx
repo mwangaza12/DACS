@@ -8,7 +8,7 @@ import {
 } from "@tanstack/react-table";
 import { fetchPatients } from "@/lib/queries";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
+import { PaginationControls } from "@/components/ui/pagination-controls";
 import { cn } from "@/lib/utils";
 import { Search, ChevronUp, ChevronDown, ChevronsUpDown, User, ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -30,15 +30,18 @@ const GENDER_BADGE: Record<string, string> = {
   other:  "bg-border text-text-muted border-border",
 };
 
+const PAGE_SIZE = 12;
+
 export default function PatientsPage() {
   const router = useRouter();
-  const [sorting, setSorting] = useState<SortingState>([]);
+  const [sorting, setSorting]       = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
   const [genderFilter, setGenderFilter] = useState("all");
+  const [page, setPage]             = useState(1);
 
   const { data: patients, isLoading } = useQuery({
     queryKey: ["patients"],
-    queryFn: () => fetchPatients(1, 100),
+    queryFn: () => fetchPatients(1, 500),
   });
 
   const columns = useMemo<ColumnDef<PatientRow>[]>(
@@ -139,13 +142,23 @@ export default function PatientsPage() {
     return rows;
   }, [patients, globalFilter, genderFilter]);
 
+  const total      = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const safePage   = Math.min(page, totalPages);
+  const pageRows   = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+  // Reset page when filters change
+  const handleGlobalFilter = (val: string) => { setGlobalFilter(val); setPage(1); };
+  const handleGenderFilter = (val: string) => { setGenderFilter(val); setPage(1); };
+
   const table = useReactTable({
-    data: filtered,
+    data: pageRows,
     columns,
     state: { sorting },
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    manualPagination: true,
   });
 
   return (
@@ -157,14 +170,14 @@ export default function PatientsPage() {
             <Search size={13} className="text-text-tertiary flex-shrink-0" />
             <input
               value={globalFilter}
-              onChange={(e) => setGlobalFilter(e.target.value)}
+              onChange={(e) => handleGlobalFilter(e.target.value)}
               placeholder="Search patients…"
               className="bg-transparent text-sm text-text-primary placeholder:text-text-muted outline-none w-44 font-body"
             />
           </div>
           <select
             value={genderFilter}
-            onChange={(e) => setGenderFilter(e.target.value)}
+            onChange={(e) => handleGenderFilter(e.target.value)}
             className="h-9 px-3 rounded-xl bg-card border border-border text-sm text-text-secondary font-body appearance-none cursor-pointer focus:outline-none focus:border-primary-500/50"
           >
             <option value="all">All genders</option>
@@ -174,7 +187,10 @@ export default function PatientsPage() {
           </select>
         </div>
         <p className="text-xs text-text-tertiary font-body">
-          {isLoading ? "Loading…" : `${filtered.length} patient${filtered.length !== 1 ? "s" : ""}`}
+          {isLoading
+            ? "Loading…"
+            : `${total} patient${total !== 1 ? "s" : ""}${total > PAGE_SIZE ? ` · page ${safePage} of ${totalPages}` : ""}`
+          }
         </p>
       </div>
 
@@ -210,7 +226,7 @@ export default function PatientsPage() {
           </thead>
           <tbody>
             {isLoading
-              ? Array.from({ length: 6 }).map((_, i) => (
+              ? Array.from({ length: PAGE_SIZE }).map((_, i) => (
                   <tr key={i} className="border-b border-border/60">
                     {columns.map((_, ci) => (
                       <td key={ci} className="px-4 py-3">
@@ -244,6 +260,12 @@ export default function PatientsPage() {
           </tbody>
         </table>
       </div>
+
+      <PaginationControls
+        page={safePage}
+        totalPages={totalPages}
+        onPageChange={setPage}
+      />
     </div>
   );
 }

@@ -1,34 +1,51 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchDoctors } from "@/lib/queries";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PaginationControls } from "@/components/ui/pagination-controls";
 import { useRouter } from "next/navigation";
 import { Search, Stethoscope, ChevronRight, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+const PAGE_SIZE = 10;
+
 export default function DoctorsPage() {
   const router = useRouter();
-  const [search, setSearch] = useState("");
+  const [search, setSearch]     = useState("");
   const [deptFilter, setDeptFilter] = useState("all");
+  const [page, setPage]         = useState(1);
 
   const { data: doctors, isLoading } = useQuery({
     queryKey: ["doctors"],
-    queryFn: () => fetchDoctors(1, 100),
+    queryFn: () => fetchDoctors(1, 500),
   });
 
-  const departments = Array.from(
-    new Set((doctors ?? []).map((d) => d.department).filter(Boolean))
-  ) as string[];
+  const departments = useMemo(
+    () => Array.from(new Set((doctors ?? []).map((d) => d.department).filter(Boolean))) as string[],
+    [doctors]
+  );
 
-  const filtered = (doctors ?? []).filter((d) => {
-    const name = `${d.firstName} ${d.lastName}`.toLowerCase();
-    const matchSearch = !search || name.includes(search.toLowerCase()) ||
-      d.specialization?.toLowerCase().includes(search.toLowerCase());
-    const matchDept = deptFilter === "all" || d.department === deptFilter;
-    return matchSearch && matchDept;
-  });
+  const filtered = useMemo(() => {
+    return (doctors ?? []).filter((d) => {
+      const name = `${d.firstName} ${d.lastName}`.toLowerCase();
+      const matchSearch =
+        !search ||
+        name.includes(search.toLowerCase()) ||
+        d.specialization?.toLowerCase().includes(search.toLowerCase());
+      const matchDept = deptFilter === "all" || d.department === deptFilter;
+      return matchSearch && matchDept;
+    });
+  }, [doctors, search, deptFilter]);
+
+  const total      = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const safePage   = Math.min(page, totalPages);
+  const pageRows   = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+  const handleSearch = (val: string) => { setSearch(val); setPage(1); };
+  const handleDept   = (val: string) => { setDeptFilter(val); setPage(1); };
 
   return (
     <div className="flex flex-col gap-5 animate-fade-up">
@@ -39,7 +56,7 @@ export default function DoctorsPage() {
             <Search size={13} className="text-text-tertiary flex-shrink-0" />
             <input
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => handleSearch(e.target.value)}
               placeholder="Search doctors…"
               className="bg-transparent text-sm text-text-primary placeholder:text-text-muted outline-none w-44 font-body"
             />
@@ -50,7 +67,7 @@ export default function DoctorsPage() {
               <Building2 size={12} className="absolute left-2.5 text-text-tertiary pointer-events-none" />
               <select
                 value={deptFilter}
-                onChange={(e) => setDeptFilter(e.target.value)}
+                onChange={(e) => handleDept(e.target.value)}
                 className="h-9 pl-7 pr-3 rounded-xl bg-card border border-border text-sm text-text-secondary font-body appearance-none cursor-pointer focus:outline-none"
               >
                 <option value="all">All departments</option>
@@ -63,14 +80,17 @@ export default function DoctorsPage() {
         </div>
 
         <p className="text-xs text-text-tertiary font-body">
-          {isLoading ? "Loading…" : `${filtered.length} doctor${filtered.length !== 1 ? "s" : ""}`}
+          {isLoading
+            ? "Loading…"
+            : `${total} doctor${total !== 1 ? "s" : ""}${total > PAGE_SIZE ? ` · page ${safePage} of ${totalPages}` : ""}`
+          }
         </p>
       </div>
 
       {/* Doctor cards grid */}
       {isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
+          {Array.from({ length: PAGE_SIZE }).map((_, i) => (
             <Skeleton key={i} className="h-40 rounded-2xl" />
           ))}
         </div>
@@ -80,52 +100,60 @@ export default function DoctorsPage() {
           <p className="text-sm font-body">No doctors found</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map((doc) => (
-            <button
-              key={doc.doctorId}
-              onClick={() => router.push(`/doctors/${doc.doctorId}`)}
-              className="group text-left p-5 rounded-2xl bg-card border border-border hover:border-primary-500/30 hover:shadow-card-hover transition-all duration-150 cursor-pointer"
-            >
-              {/* Avatar */}
-              <div className="flex items-start justify-between mb-4">
-                <div className="w-12 h-12 rounded-2xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center">
-                  <span className="font-display font-bold text-lg text-teal-400">
-                    {doc.firstName?.[0]}{doc.lastName?.[0]}
-                  </span>
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {pageRows.map((doc) => (
+              <button
+                key={doc.doctorId}
+                onClick={() => router.push(`/doctors/${doc.doctorId}`)}
+                className="group text-left p-5 rounded-2xl bg-card border border-border hover:border-primary-500/30 hover:shadow-card-hover transition-all duration-150 cursor-pointer"
+              >
+                {/* Avatar */}
+                <div className="flex items-start justify-between mb-4">
+                  <div className="w-12 h-12 rounded-2xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center">
+                    <span className="font-display font-bold text-lg text-teal-400">
+                      {doc.firstName?.[0]}{doc.lastName?.[0]}
+                    </span>
+                  </div>
+                  <ChevronRight
+                    size={15}
+                    className="text-text-muted group-hover:text-primary-400 group-hover:translate-x-0.5 transition-all mt-1"
+                  />
                 </div>
-                <ChevronRight
-                  size={15}
-                  className="text-text-muted group-hover:text-primary-400 group-hover:translate-x-0.5 transition-all mt-1"
-                />
-              </div>
 
-              <div>
-                <p className="font-display font-bold text-sm text-text-primary mb-0.5">
-                  Dr. {doc.firstName} {doc.lastName}
-                </p>
-                {doc.specialization && (
-                  <p className="text-xs text-primary-400 font-body mb-1">{doc.specialization}</p>
-                )}
-                {doc.department && (
-                  <div className="flex items-center gap-1.5 text-xs text-text-muted font-body">
-                    <Building2 size={10} />
-                    {doc.department}
+                <div>
+                  <p className="font-display font-bold text-sm text-text-primary mb-0.5">
+                    Dr. {doc.firstName} {doc.lastName}
+                  </p>
+                  {doc.specialization && (
+                    <p className="text-xs text-primary-400 font-body mb-1">{doc.specialization}</p>
+                  )}
+                  {doc.department && (
+                    <div className="flex items-center gap-1.5 text-xs text-text-muted font-body">
+                      <Building2 size={10} />
+                      {doc.department}
+                    </div>
+                  )}
+                </div>
+
+                {doc.consultationFee && (
+                  <div className="mt-3 pt-3 border-t border-border/60 flex items-center justify-between">
+                    <span className="text-[11px] text-text-muted font-body">Consultation fee</span>
+                    <span className="text-xs font-bold font-display text-success">
+                      KES {Number(doc.consultationFee).toLocaleString()}
+                    </span>
                   </div>
                 )}
-              </div>
+              </button>
+            ))}
+          </div>
 
-              {doc.consultationFee && (
-                <div className="mt-3 pt-3 border-t border-border/60 flex items-center justify-between">
-                  <span className="text-[11px] text-text-muted font-body">Consultation fee</span>
-                  <span className="text-xs font-bold font-display text-success">
-                    KES {Number(doc.consultationFee).toLocaleString()}
-                  </span>
-                </div>
-              )}
-            </button>
-          ))}
-        </div>
+          <PaginationControls
+            page={safePage}
+            totalPages={totalPages}
+            onPageChange={setPage}
+          />
+        </>
       )}
     </div>
   );

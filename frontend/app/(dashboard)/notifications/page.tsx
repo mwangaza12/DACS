@@ -1,9 +1,11 @@
 "use client";
 
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchAllNotifications, markNotificationRead } from "@/lib/queries";
 import { useAuthStore } from "@/store/auth.store";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PaginationControls } from "@/components/ui/pagination-controls";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow, parseISO } from "date-fns";
 import { Bell, Mail, MessageSquare, Smartphone, CheckCheck, CheckCircle } from "lucide-react";
@@ -29,9 +31,12 @@ const STATUS_STYLES: Record<string, string> = {
   failed:    "text-danger",
 };
 
+const PAGE_SIZE = 10;
+
 export default function NotificationsPage() {
   const { user, isAuthenticated } = useAuthStore();
   const queryClient = useQueryClient();
+  const [page, setPage] = useState(1);
 
   const { data: rawNotifications, isLoading } = useQuery({
     queryKey: ["notifications", "all"],
@@ -54,11 +59,17 @@ export default function NotificationsPage() {
     unread.forEach((n) => markReadMutation.mutate(n.notificationId));
   };
 
-  const unreadCount = (notifications ?? []).filter(
-    (n) => n.notificationsStatus === "pending" || n.notificationsStatus === "sent"
-  ).length;
+  const unreadCount = useMemo(
+    () => (notifications ?? []).filter(
+      (n) => n.notificationsStatus === "pending" || n.notificationsStatus === "sent"
+    ).length,
+    [notifications]
+  );
 
   const totalCount = notifications?.length ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const safePage   = Math.min(page, totalPages);
+  const pageRows   = (notifications ?? []).slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   return (
     <div className="flex flex-col gap-5 animate-fade-up max-w-3xl">
@@ -79,6 +90,7 @@ export default function NotificationsPage() {
               )}
               <span className="text-xs text-text-tertiary font-body">
                 {totalCount} notification{totalCount !== 1 ? "s" : ""} total
+                {totalCount > PAGE_SIZE && ` · page ${safePage} of ${totalPages}`}
               </span>
             </>
           )}
@@ -99,7 +111,7 @@ export default function NotificationsPage() {
       {/* Loading */}
       {isLoading && (
         <div className="flex flex-col gap-3">
-          {Array.from({ length: 5 }).map((_, i) => (
+          {Array.from({ length: PAGE_SIZE }).map((_, i) => (
             <div key={i} className="flex gap-4 p-4 rounded-2xl bg-card border border-border">
               <Skeleton className="w-10 h-10 rounded-xl flex-shrink-0" />
               <div className="flex-1 flex flex-col gap-2">
@@ -127,77 +139,85 @@ export default function NotificationsPage() {
 
       {/* List */}
       {!isLoading && totalCount > 0 && (
-        <div className="flex flex-col gap-2">
-          {notifications!.map((n) => {
-            const isUnread = n.notificationsStatus === "pending" || n.notificationsStatus === "sent";
-            const timeAgo = (() => {
-              try { return formatDistanceToNow(parseISO(n.sentAt ?? n.createdAt), { addSuffix: true }); }
-              catch { return ""; }
-            })();
+        <>
+          <div className="flex flex-col gap-2">
+            {pageRows.map((n) => {
+              const isUnread = n.notificationsStatus === "pending" || n.notificationsStatus === "sent";
+              const timeAgo = (() => {
+                try { return formatDistanceToNow(parseISO(n.sentAt ?? n.createdAt), { addSuffix: true }); }
+                catch { return ""; }
+              })();
 
-            return (
-              <div
-                key={n.notificationId}
-                className={cn(
-                  "flex items-start gap-4 p-4 rounded-2xl border transition-all duration-150",
-                  isUnread
-                    ? "bg-primary-500/5 border-primary-500/15"
-                    : "bg-card border-border",
-                )}
-              >
-                {/* Icon */}
-                <div className={cn(
-                  "w-10 h-10 rounded-xl border flex items-center justify-center flex-shrink-0 mt-0.5",
-                  TYPE_STYLES[n.notificationType] ?? TYPE_STYLES.in_app,
-                )}>
-                  {TYPE_ICONS[n.notificationType] ?? <Bell size={14} />}
-                </div>
-
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  {n.subject && (
-                    <p className="text-sm font-medium text-text-primary font-body mb-0.5 leading-snug">
-                      {n.subject}
-                    </p>
+              return (
+                <div
+                  key={n.notificationId}
+                  className={cn(
+                    "flex items-start gap-4 p-4 rounded-2xl border transition-all duration-150",
+                    isUnread
+                      ? "bg-primary-500/5 border-primary-500/15"
+                      : "bg-card border-border",
                   )}
-                  <p className="text-sm text-text-secondary font-body leading-relaxed">{n.message}</p>
-
-                  <div className="flex items-center gap-2 mt-2 flex-wrap">
-                    <span className={cn(
-                      "text-[11px] font-medium font-body capitalize",
-                      STATUS_STYLES[n.notificationsStatus] ?? "text-text-muted",
-                    )}>
-                      {n.notificationsStatus}
-                    </span>
-                    <span className="text-text-muted text-[11px]">·</span>
-                    <span className="text-[11px] text-text-muted font-body capitalize">
-                      {n.notificationType.replace("_", " ")}
-                    </span>
-                    {timeAgo && (
-                      <>
-                        <span className="text-text-muted text-[11px]">·</span>
-                        <span className="text-[11px] text-text-muted font-body">{timeAgo}</span>
-                      </>
-                    )}
+                >
+                  {/* Icon */}
+                  <div className={cn(
+                    "w-10 h-10 rounded-xl border flex items-center justify-center flex-shrink-0 mt-0.5",
+                    TYPE_STYLES[n.notificationType] ?? TYPE_STYLES.in_app,
+                  )}>
+                    {TYPE_ICONS[n.notificationType] ?? <Bell size={14} />}
                   </div>
-                </div>
 
-                {/* Mark read button */}
-                {isUnread && (
-                  <button
-                    onClick={() => markReadMutation.mutate(n.notificationId)}
-                    disabled={markReadMutation.isPending}
-                    title="Mark as read"
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-text-tertiary hover:text-primary-400 hover:bg-primary-500/10 transition-all cursor-pointer font-body flex-shrink-0 disabled:opacity-50"
-                  >
-                    <CheckCheck size={13} />
-                    Read
-                  </button>
-                )}
-              </div>
-            );
-          })}
-        </div>
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    {n.subject && (
+                      <p className="text-sm font-medium text-text-primary font-body mb-0.5 leading-snug">
+                        {n.subject}
+                      </p>
+                    )}
+                    <p className="text-sm text-text-secondary font-body leading-relaxed">{n.message}</p>
+
+                    <div className="flex items-center gap-2 mt-2 flex-wrap">
+                      <span className={cn(
+                        "text-[11px] font-medium font-body capitalize",
+                        STATUS_STYLES[n.notificationsStatus] ?? "text-text-muted",
+                      )}>
+                        {n.notificationsStatus}
+                      </span>
+                      <span className="text-text-muted text-[11px]">·</span>
+                      <span className="text-[11px] text-text-muted font-body capitalize">
+                        {n.notificationType.replace("_", " ")}
+                      </span>
+                      {timeAgo && (
+                        <>
+                          <span className="text-text-muted text-[11px]">·</span>
+                          <span className="text-[11px] text-text-muted font-body">{timeAgo}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Mark read button */}
+                  {isUnread && (
+                    <button
+                      onClick={() => markReadMutation.mutate(n.notificationId)}
+                      disabled={markReadMutation.isPending}
+                      title="Mark as read"
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-text-tertiary hover:text-primary-400 hover:bg-primary-500/10 transition-all cursor-pointer font-body flex-shrink-0 disabled:opacity-50"
+                    >
+                      <CheckCheck size={13} />
+                      Read
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <PaginationControls
+            page={safePage}
+            totalPages={totalPages}
+            onPageChange={setPage}
+          />
+        </>
       )}
     </div>
   );

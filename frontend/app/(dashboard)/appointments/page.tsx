@@ -15,11 +15,12 @@ import { StatusBadge, TypeBadge } from "@/components/appointments/status-badge";
 import { AppointmentDrawer } from "@/components/appointments/appointment-drawer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { PaginationControls } from "@/components/ui/pagination-controls";
 import { cn } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
 import {
   Plus, Search, ChevronUp, ChevronDown, ChevronsUpDown,
-  SlidersHorizontal, Calendar, ChevronLeft, ChevronRight,
+  SlidersHorizontal, Calendar,
 } from "lucide-react";
 import { APPOINTMENT_STATUSES, APPOINTMENT_TYPES, STATUS_LABELS, TYPE_LABELS } from "@/lib/appointment-utils";
 
@@ -37,19 +38,7 @@ type ApptRow = {
   createdAt: string;
 };
 
-// Adjust this to match your API response shape.
-// If your API returns { data: ApptRow[], total: number } wrap fetchAppointments accordingly.
-// If it just returns ApptRow[], set total from data.length and disable server pagination.
-type AppointmentsResponse = {
-  data: ApptRow[];
-  total: number;   // total records matching the current filters (for page count)
-} | ApptRow[];     // fallback: plain array → client-side page count not available
-
-const PAGE_SIZE = 15;
-
-function isPagedResponse(r: AppointmentsResponse): r is { data: ApptRow[]; total: number } {
-  return !Array.isArray(r) && "data" in r;
-}
+const PAGE_SIZE = 10;
 
 export default function AppointmentsPage() {
   const [sorting, setSorting]         = useState<SortingState>([]);
@@ -60,7 +49,6 @@ export default function AppointmentsPage() {
   const [typeFilter, setTypeFilter]   = useState("all");
   const [selectedId, setSelectedId]   = useState<string | null>(null);
 
-  // Debounce search so we don't fire a request on every keystroke
   const handleSearchChange = (val: string) => {
     setSearch(val);
     setPage(1);
@@ -70,30 +58,42 @@ export default function AppointmentsPage() {
 
   const handleFilterChange = (setter: (v: string) => void) => (e: React.ChangeEvent<HTMLSelectElement>) => {
     setter(e.target.value);
-    setPage(1); // reset to page 1 whenever a filter changes
+    setPage(1);
   };
 
-  // All filter state is passed to the query — server does the work
-  const queryParams = {
-    page,
-    limit: PAGE_SIZE,
-    ...(debouncedSearch  && { search: debouncedSearch }),
-    ...(statusFilter !== "all" && { status: statusFilter }),
-    ...(typeFilter   !== "all" && { type: typeFilter }),
-  };
-
+  // Fetch a large batch; filter + paginate client-side
   const { data: raw, isLoading, isFetching } = useQuery({
-    queryKey: ["appointments", "list", queryParams],
-    queryFn: () => fetchAppointments(queryParams),
-    placeholderData: (prev) => prev, // keep previous data visible while fetching next page
+    queryKey: ["appointments", "list"],
+    queryFn: () => fetchAppointments({ page: 1, limit: 500 }),
+    placeholderData: (prev) => prev,
   });
 
-  // Normalise: support both { data, total } and plain array responses
-  const rows: ApptRow[]  = raw ? (isPagedResponse(raw) ? raw.data : raw) : [];
-  const total: number    = raw ? (isPagedResponse(raw) ? raw.total : (raw as ApptRow[]).length) : 0;
-  const totalPages       = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const hasPrev          = page > 1;
-  const hasNext          = page < totalPages;
+  const allRows: ApptRow[] = Array.isArray(raw) ? raw : (raw as any)?.data ?? [];
+
+  // Client-side filtering
+  const filtered = useMemo(() => {
+    let rows = allRows;
+    if (statusFilter !== "all") rows = rows.filter((r) => r.appointmentStatus === statusFilter);
+    if (typeFilter !== "all")   rows = rows.filter((r) => r.appointmentType === typeFilter);
+    if (debouncedSearch) {
+      const q = debouncedSearch.toLowerCase();
+      rows = rows.filter(
+        (r) =>
+          r.reason?.toLowerCase().includes(q) ||
+          r.appointmentDate.includes(q) ||
+          r.appointmentStatus.includes(q)
+      );
+    }
+    return rows;
+  }, [allRows, statusFilter, typeFilter, debouncedSearch]);
+
+  const total      = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const pageRows   = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  // Reset to page 1 if current page is out of range after filter changes
+  const safePage = Math.min(page, totalPages);
+  if (safePage !== page) setPage(safePage);
 
   const columns = useMemo<ColumnDef<ApptRow>[]>(
     () => [
@@ -151,18 +151,16 @@ export default function AppointmentsPage() {
   );
 
   const table = useReactTable({
-    data: rows,
+    data: pageRows,
     columns,
     state: { sorting },
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    // ⚠️ No getFilteredRowModel — filtering is server-side now
-    manualFiltering: true,
     manualPagination: true,
   });
 
-  const isStale = !isLoading && isFetching; // page transition in progress
+  const isStale = !isLoading && isFetching;
 
   return (
     <>
@@ -292,68 +290,12 @@ export default function AppointmentsPage() {
           </table>
         </div>
 
-        {/* Pagination controls — only shown when there's more than one page */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between pt-1">
-            {/* Page number pills */}
-            <div className="flex items-center gap-1">
-              {Array.from({ length: totalPages }, (_, i) => i + 1)
-                // Show: first, last, current ±1, and ellipsis gaps
-                .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
-                .reduce<(number | "…")[]>((acc, p, idx, arr) => {
-                  if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push("…");
-                  acc.push(p);
-                  return acc;
-                }, [])
-                .map((p, i) =>
-                  p === "…" ? (
-                    <span key={`ellipsis-${i}`} className="px-1 text-xs text-text-muted font-body select-none">…</span>
-                  ) : (
-                    <button
-                      key={p}
-                      onClick={() => setPage(p as number)}
-                      className={cn(
-                        "h-7 min-w-[28px] px-2 rounded-lg text-xs font-medium font-body transition-colors",
-                        p === page
-                          ? "bg-primary-500/20 text-primary-400 border border-primary-500/30"
-                          : "text-text-tertiary hover:text-text-secondary hover:bg-card border border-transparent"
-                      )}
-                    >
-                      {p}
-                    </button>
-                  )
-                )}
-            </div>
-
-            {/* Prev / Next */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={!hasPrev || isFetching}
-                className={cn(
-                  "flex items-center gap-1 h-7 px-2.5 rounded-lg text-xs font-medium font-body border transition-colors",
-                  hasPrev && !isFetching
-                    ? "border-border text-text-secondary hover:bg-card hover:text-text-primary cursor-pointer"
-                    : "border-transparent text-text-muted cursor-not-allowed opacity-40"
-                )}
-              >
-                <ChevronLeft size={13} /> Prev
-              </button>
-              <button
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={!hasNext || isFetching}
-                className={cn(
-                  "flex items-center gap-1 h-7 px-2.5 rounded-lg text-xs font-medium font-body border transition-colors",
-                  hasNext && !isFetching
-                    ? "border-border text-text-secondary hover:bg-card hover:text-text-primary cursor-pointer"
-                    : "border-transparent text-text-muted cursor-not-allowed opacity-40"
-                )}
-              >
-                Next <ChevronRight size={13} />
-              </button>
-            </div>
-          </div>
-        )}
+        <PaginationControls
+          page={page}
+          totalPages={totalPages}
+          onPageChange={setPage}
+          isFetching={isFetching}
+        />
       </div>
 
       <AppointmentDrawer
