@@ -10,20 +10,32 @@ import {
 } from "./billing.service";
 
 export const getAllBillsController = async (req: Request, res: Response) => {
-    const { patientId, page, limit } = req.query as Record<string, string>;
+    const { page, limit } = req.query as Record<string, string>;
+    const role   = req.user?.role;
+    const userId = req.user?.userId;
+
+    // Patients are always scoped to their own bills
+    const patientId = role === "patient" ? userId : (req.query.patientId as string | undefined);
+
     const bills = await getAllBillsService(patientId, Number(page) || 1, Number(limit) || 10);
     return success(res, bills, "Bills retrieved successfully");
 };
 
 export const getBillByIdController = async (req: Request, res: Response) => {
-    const {id} = req.params;
+    const { id } = req.params;
     const bill = await getBillByIdService(String(id));
     if (!bill) throw new Error("Bill not found");
+
+    // Patients can only view their own bill
+    if (req.user?.role === "patient" && bill.patientId !== req.user.userId) {
+        throw new Error("Forbidden");
+    }
+
     return success(res, bill, "Bill retrieved successfully");
 };
 
 export const updateBillController = async (req: Request, res: Response) => {
-    const {id} = req.params;
+    const { id } = req.params;
     const parsed = UpdateBillSchema.safeParse(req.body);
     if (parsed.error) throw new Error(parsed.error.message);
 
@@ -33,7 +45,7 @@ export const updateBillController = async (req: Request, res: Response) => {
 };
 
 export const processPaymentController = async (req: Request, res: Response) => {
-    const {id} = req.params;
+    const { id } = req.params;
     const parsed = PayBillSchema.safeParse(req.body);
     if (parsed.error) throw new Error(parsed.error.message);
 

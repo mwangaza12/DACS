@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "..";
 import { bills, insuranceClaims } from "../db/schema";
 import { PayBillType, UpdateBillType } from "./billing.dto";
@@ -6,8 +6,15 @@ import { paginate } from "../utils/pagination";
 
 export const getAllBillsService = async (patientId?: string, page = 1, limit = 10) => {
     const { limit: lim, offset } = paginate(page, limit);
+
+    // Build conditions array the same way appointments.service does
+    // so the .where() call is only made when there is actually a filter
+    const conditions = [];
+    if (patientId) conditions.push(eq(bills.patientId, patientId));
+
     const query = db.select().from(bills);
-    if (patientId) query.where(eq(bills.patientId, patientId));
+    if (conditions.length > 0) query.where(and(...conditions));
+
     return query.limit(lim).offset(offset);
 };
 
@@ -20,7 +27,6 @@ export const updateBillService = async (billId: string, data: UpdateBillType) =>
     const bill = await getBillByIdService(billId);
     if (!bill) throw new Error("Bill not found");
 
-    // Recalculate patient payable if insurance coverage changes
     const insuranceCovered = data.insuranceCovered ?? bill.insuranceCovered ?? "0";
     const totalAmount = parseFloat(bill.amount ?? "0");
     const covered = parseFloat(insuranceCovered);

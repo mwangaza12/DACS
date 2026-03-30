@@ -10,15 +10,28 @@ import {
 } from "./medical-records.service";
 
 export const getAllMedicalRecordsController = async (req: Request, res: Response) => {
-    const { patientId, page, limit } = req.query as Record<string, string>;
+    const { page, limit } = req.query as Record<string, string>;
+    const role   = req.user?.role;
+    const userId = req.user?.userId;
+
+    // Patients are always scoped to their own records
+    // Doctors see all records unless an admin filters by patientId
+    const patientId = role === "patient" ? userId : (req.query.patientId as string | undefined);
+
     const records = await getAllMedicalRecordsService(patientId, Number(page) || 1, Number(limit) || 10);
     return success(res, records, "Medical records retrieved successfully");
 };
 
 export const getMedicalRecordByIdController = async (req: Request, res: Response) => {
-    const {id}  = req.params;
+    const { id } = req.params;
     const record = await getMedicalRecordByIdService(String(id));
     if (!record) throw new Error("Medical record not found");
+
+    // Patients can only view their own record
+    if (req.user?.role === "patient" && record.patientId !== req.user.userId) {
+        throw new Error("Forbidden");
+    }
+
     return success(res, record, "Medical record retrieved successfully");
 };
 
@@ -31,7 +44,7 @@ export const createMedicalRecordController = async (req: Request, res: Response)
 };
 
 export const updateMedicalRecordController = async (req: Request, res: Response) => {
-    const {id}  = req.params;
+    const { id } = req.params;
     const parsed = UpdateMedicalRecordSchema.safeParse(req.body);
     if (parsed.error) throw new Error(parsed.error.message);
 

@@ -1,12 +1,22 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "..";
 import { medicalRecords, patientDocuments } from "../db/schema";
-import { InsertMedicalRecordType, InsertPatientDocumentType, UpdateMedicalRecordType } from "./medical-records.dto";
+import {
+    InsertMedicalRecordType,
+    InsertPatientDocumentType,
+    UpdateMedicalRecordType,
+} from "./medical-records.dto";
 
 export const getAllMedicalRecordsService = async (patientId?: string, page = 1, limit = 10) => {
     const offset = (page - 1) * limit;
+
+    // Same pattern as appointments — only call .where() when there is a condition
+    const conditions = [];
+    if (patientId) conditions.push(eq(medicalRecords.patientId, patientId));
+
     const query = db.select().from(medicalRecords);
-    if (patientId) query.where(eq(medicalRecords.patientId, patientId));
+    if (conditions.length > 0) query.where(and(...conditions));
+
     return query.limit(limit).offset(offset);
 };
 
