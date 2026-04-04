@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { db } from "..";
 import { users, patients, doctors } from "../db/schema";
 import { RegisterInput } from "./auth.dto";
+import { sendEmail, welcomeHtml, passwordResetHtml } from "../utils/email";
 
 export const registerUserService = async (input: RegisterInput, passwordHash: string) => {
     // Step 1: insert the user
@@ -37,6 +38,13 @@ export const registerUserService = async (input: RegisterInput, passwordHash: st
                 })
                 .returning();
 
+            // Fire-and-forget welcome email
+            sendEmail({
+                to: user.email,
+                subject: "Welcome to DACS Health!",
+                html: welcomeHtml({ name: input.firstName, role: "Patient" }),
+            }).catch((err) => console.error("[Email] Welcome email failed:", err));
+
             const { password: _, ...safeUser } = user;
             return { user: safeUser, profile: patient };
         }
@@ -54,6 +62,13 @@ export const registerUserService = async (input: RegisterInput, passwordHash: st
                     consultationFee: input.consultationFee ?? null,
                 })
                 .returning();
+
+            // Fire-and-forget welcome email
+            sendEmail({
+                to: user.email,
+                subject: "Welcome to DACS Health!",
+                html: welcomeHtml({ name: input.firstName, role: "Doctor" }),
+            }).catch((err) => console.error("[Email] Welcome email failed:", err));
 
             const { password: _, ...safeUser } = user;
             return { user: safeUser, profile: doctor };
@@ -78,4 +93,28 @@ export const getUserByEmailService = async (email: string) => {
 export const getUserByIdService = async (userId: string) => {
     const [user] = await db.select().from(users).where(eq(users.userId, userId));
     return user ?? null;
+};
+/**
+ * Sends a password-reset email.
+ * In production, generate a signed JWT reset token and embed it in the link.
+ */
+export const sendPasswordResetEmailService = async (email: string) => {
+    const user = await getUserByEmailService(email);
+    if (!user) return; // silently ignore unknown emails (security: don't leak existence)
+
+    const frontendBaseUrl = process.env.FRONTEND_URL ?? "http://localhost:3000";
+
+    // TODO: replace with a real signed JWT reset token stored in DB
+    const resetToken = Buffer.from(`${user.userId}:${Date.now()}`).toString("base64url");
+    const resetLink = `${frontendBaseUrl}/reset-password?token=${resetToken}`;
+
+    const displayName = email.split("@")[0];
+
+    await sendEmail({
+        to: email,
+        subject: "Password Reset Request — DACS Health",
+        html: passwordResetHtml({ name: displayName, resetLink }),
+    });
+
+    console.log(`[Auth] Password reset email sent to ${email}`);
 };

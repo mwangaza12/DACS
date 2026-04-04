@@ -50,7 +50,7 @@ const Header = () => {
               </Link>
             </Button>
             <Button asChild variant="ghost" size="lg">
-              <Link href="/doctors">Find Doctors</Link>
+              <Link href="">Find Doctors</Link>
             </Button>
           </div>
         </div>

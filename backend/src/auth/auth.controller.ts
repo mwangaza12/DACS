@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { RegisterSchema,LoginSchema,ForgotPasswordSchema,RefreshTokenSchema } from "./auth.dto";
-import { getUserByEmailService, getUserByIdService, registerUserService } from "./auth.service";
+import { getUserByEmailService, getUserByIdService, registerUserService, sendPasswordResetEmailService } from "./auth.service";
 import { success } from "../utils/response.handler";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
@@ -70,11 +70,10 @@ export const forgotPasswordController = async (req: Request, res: Response) => {
     const parsed = ForgotPasswordSchema.safeParse(req.body);
     if (!parsed.success) throw new Error(parsed.error.message);
 
-    const user = await getUserByEmailService(parsed.data.email);
-    if (user) {
-        // TODO: integrate email provider (Resend, Nodemailer, etc.)
-        console.log(`[AUTH] Password reset requested for: ${parsed.data.email}`);
-    }
+    // Fire-and-forget: never leak whether the email exists via timing or errors
+    sendPasswordResetEmailService(parsed.data.email).catch((err) =>
+        console.error("[Auth] Password reset email failed:", err)
+    );
 
     return success(res, null, "If the email exists, a reset link has been sent");
 };

@@ -1,8 +1,15 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "..";
-import { appointments, doctorAvailability, doctors, bills } from "../db/schema";
+import { appointments, doctorAvailability, doctors, bills, users, patients } from "../db/schema";
 import { InsertAppointmentType, UpdateAppointmentType } from "./appointments.dto";
 import { paginate } from "../utils/pagination";
+import {
+    sendEmail,
+    appointmentConfirmedHtml,
+    appointmentReminderHtml,
+    appointmentCancelledHtml,
+    billCreatedHtml,
+} from "../utils/email";
 
 export const getAllAppointmentsService = async (filters: {
     patientId?: string;
@@ -35,6 +42,12 @@ export const getAppointmentByIdService = async (appointmentId: string) => {
 export const createAppointmentService = async (data: InsertAppointmentType) => {
     const [appointment] = await db.insert(appointments).values(data).returning();
     if (!appointment) throw new Error("Failed to create appointment");
+
+    // Fire-and-forget confirmation email
+    sendAppointmentConfirmationEmail(appointment).catch((err) =>
+        console.error("[Email] Appointment confirmation failed:", err)
+    );
+
     return appointment;
 };
 
@@ -74,6 +87,13 @@ export const cancelAppointmentService = async (appointmentId: string, reason?: s
         })
         .where(eq(appointments.appointmentId, appointmentId))
         .returning();
+
+    if (cancelled) {
+        sendAppointmentCancellationEmail(cancelled, reason).catch((err) =>
+            console.error("[Email] Cancellation email failed:", err)
+        );
+    }
+
     return cancelled ?? null;
 };
 
@@ -126,9 +146,6 @@ export const getAvailableSlotsService = async (doctorId: string, date: string) =
 /**
  * Looks up the doctor's consultationFee and inserts a pending bill.
  * Called automatically when an appointment transitions to "completed".
- *
- * Insurance coverage is set to 0 by default — staff can update it later
- * via PUT /api/bills/:id once the insurance claim is processed.
  */
 const createBillForAppointment = async (
     appointmentId: string,
@@ -142,20 +159,120 @@ const createBillForAppointment = async (
 
     const fee = doctor?.consultationFee ?? "0";
 
-    // Check a bill doesn't already exist for this appointment (idempotency guard)
     const [existing] = await db
         .select({ billId: bills.billId })
         .from(bills)
         .where(eq(bills.appointmentId, appointmentId));
 
-    if (existing) return; // already billed — skip
+    if (existing) return;
 
-    await db.insert(bills).values({
+    const [bill] = await db.insert(bills).values({
         appointmentId,
         patientId,
         amount: fee,
         insuranceCovered: "0",
-        patientPayable: fee,   // starts as full amount; reduced when insurance is applied
+        patientPayable: fee,
         billStatus: "pending",
+    }).returning();
+
+    if (bill) {
+        sendBillCreatedEmail(bill.billId, patientId, appointmentId, fee).catch((err) =>
+            console.error("[Email] Bill notification failed:", err)
+        );
+    }
+};
+
+// ── Email dispatch helpers ────────────────────────────────────────────────────
+
+type AppointmentRow = typeof appointments.$inferSelect;
+
+const getPatientEmailAndName = async (patientId: string) => {
+    const [row] = await db
+        .select({
+            email: users.email,
+            firstName: patients.firstName,
+            lastName: patients.lastName,
+        })
+        .from(patients)
+        .innerJoin(users, eq(users.userId, patients.patientId))
+        .where(eq(patients.patientId, patientId));
+    return row ?? null;
+};
+
+const getDoctorName = async (doctorId: string) => {
+    const [row] = await db
+        .select({ firstName: doctors.firstName, lastName: doctors.lastName })
+        .from(doctors)
+        .where(eq(doctors.doctorId, doctorId));
+    return row ? `Dr. ${row.firstName} ${row.lastName}` : "Your Doctor";
+};
+
+const formatDate = (d: string) =>
+    new Date(d).toLocaleDateString("en-KE", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+
+const formatTime = (t: string) => {
+    const [h, m] = t.split(":").map(Number);
+    const suffix = h >= 12 ? "PM" : "AM";
+    return `${((h % 12) || 12).toString().padStart(2, "0")}:${m.toString().padStart(2, "0")} ${suffix}`;
+};
+
+const sendAppointmentConfirmationEmail = async (appt: AppointmentRow) => {
+    if (!appt.patientId || !appt.doctorId) return;
+    const patient = await getPatientEmailAndName(appt.patientId);
+    if (!patient) return;
+    const doctorName = await getDoctorName(appt.doctorId);
+
+    await sendEmail({
+        to: patient.email,
+        subject: "Appointment Confirmed — DACS Health",
+        html: appointmentConfirmedHtml({
+            patientName: `${patient.firstName} ${patient.lastName}`,
+            doctorName,
+            date: formatDate(appt.appointmentDate),
+            time: formatTime(appt.appointmentTime),
+            type: appt.appointmentType ?? "regular",
+            appointmentId: appt.appointmentId,
+        }),
+    });
+};
+
+const sendAppointmentCancellationEmail = async (appt: AppointmentRow, reason?: string) => {
+    if (!appt.patientId || !appt.doctorId) return;
+    const patient = await getPatientEmailAndName(appt.patientId);
+    if (!patient) return;
+    const doctorName = await getDoctorName(appt.doctorId);
+
+    await sendEmail({
+        to: patient.email,
+        subject: "Appointment Cancelled — DACS Health",
+        html: appointmentCancelledHtml({
+            patientName: `${patient.firstName} ${patient.lastName}`,
+            doctorName,
+            date: formatDate(appt.appointmentDate),
+            time: formatTime(appt.appointmentTime),
+            reason,
+            appointmentId: appt.appointmentId,
+        }),
+    });
+};
+
+const sendBillCreatedEmail = async (
+    billId: string,
+    patientId: string,
+    appointmentId: string,
+    amount: string
+) => {
+    const patient = await getPatientEmailAndName(patientId);
+    if (!patient) return;
+
+    await sendEmail({
+        to: patient.email,
+        subject: "New Bill Generated — DACS Health",
+        html: billCreatedHtml({
+            patientName: `${patient.firstName} ${patient.lastName}`,
+            amount,
+            billId,
+            appointmentId,
+        }),
     });
 };
