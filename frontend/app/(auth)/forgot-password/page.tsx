@@ -12,23 +12,13 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Navbar } from "@/components/navbar";
 import FooterSection from "@/components/footer";
+import { api } from "@/lib/api"; // adjust path to match your project
 
-// Define the schema directly if not available
 const forgotPasswordSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
 });
 
 type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>;
-
-// Mock API function - replace with your actual API
-const authApi = {
-  forgotPassword: async (email: string) => {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    console.log("Password reset requested for:", email);
-    return { success: true };
-  },
-};
 
 export default function ForgotPasswordPage() {
   const [submitted, setSubmitted] = useState(false);
@@ -37,15 +27,24 @@ export default function ForgotPasswordPage() {
   const {
     register,
     handleSubmit,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm<ForgotPasswordFormData>({
     resolver: zodResolver(forgotPasswordSchema),
   });
 
   const onSubmit = async (data: ForgotPasswordFormData) => {
-    await authApi.forgotPassword(data.email);
-    setSubmittedEmail(data.email);
-    setSubmitted(true);
+    try {
+      await api.post("/auth/forgot-password", { email: data.email });
+      setSubmittedEmail(data.email);
+      setSubmitted(true);
+    } catch (err: unknown) {
+      // Your backend intentionally returns a generic message regardless,
+      // but surface unexpected network/server errors to the user
+      const message =
+        err instanceof Error ? err.message : "Something went wrong. Please try again.";
+      setError("root", { message });
+    }
   };
 
   if (submitted) {
@@ -123,6 +122,11 @@ export default function ForgotPasswordPage() {
                 {errors.email && (
                   <p className="text-sm text-red-500 dark:text-red-400">
                     {errors.email.message}
+                  </p>
+                )}
+                {errors.root && (
+                  <p className="text-sm text-red-500 dark:text-red-400">
+                    {errors.root.message}
                   </p>
                 )}
               </div>

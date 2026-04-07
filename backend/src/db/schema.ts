@@ -180,3 +180,13 @@ export const systemMetrics = pgTable("system_metrics", {
     metricValue: decimal({precision: 10, scale: 2}),
     recordedAt: timestamp().defaultNow()
 });
+
+export const passwordResetTokens = pgTable("password_reset_tokens", {
+    id: uuid("id").primaryKey().defaultRandom(), // Changed from passwordResetTokenId
+    userId: uuid("user_id").notNull().references(() => users.userId, { onDelete: "cascade" }), // Added notNull() and cascade delete
+    token: varchar("token", { length: 512 }).notNull().unique(),
+    expiresAt: timestamp("expires_at").notNull(),
+    used: boolean("used").default(false),
+    createdAt: timestamp("created_at").defaultNow().notNull(), // Added createdAt with notNull
+    updatedAt: timestamp("updated_at"), // Added updatedAt
+});

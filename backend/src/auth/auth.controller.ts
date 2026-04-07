@@ -1,6 +1,18 @@
 import { Request, Response } from "express";
-import { RegisterSchema,LoginSchema,ForgotPasswordSchema,RefreshTokenSchema } from "./auth.dto";
-import { getUserByEmailService, getUserByIdService, registerUserService, sendPasswordResetEmailService } from "./auth.service";
+import { 
+    RegisterSchema, 
+    LoginSchema, 
+    ForgotPasswordSchema, 
+    RefreshTokenSchema,
+    ResetPasswordSchema 
+} from "./auth.dto";
+import { 
+    getUserByEmailService, 
+    getUserByIdService, 
+    registerUserService, 
+    sendPasswordResetEmailService,
+    resetPasswordService 
+} from "./auth.service";
 import { success } from "../utils/response.handler";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
@@ -76,4 +88,14 @@ export const forgotPasswordController = async (req: Request, res: Response) => {
     );
 
     return success(res, null, "If the email exists, a reset link has been sent");
+};
+
+export const resetPasswordController = async (req: Request, res: Response) => {
+    const parsed = ResetPasswordSchema.safeParse(req.body);
+    if (!parsed.success) throw new Error(parsed.error.message);
+    
+    const { token, newPassword } = parsed.data;
+    const user = await resetPasswordService(token, newPassword);
+    
+    return success(res, { user }, "Password reset successfully");
 };
