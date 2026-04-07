@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/card";
 import { Navbar } from "@/components/navbar";
 import FooterSection from "@/components/footer";
-import { api } from "@/lib/api"; // adjust path to match your project
+import { api } from "@/lib/api";
 
 const resetPasswordSchema = z
   .object({
@@ -36,10 +36,10 @@ const resetPasswordSchema = z
   });
 
 type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
-
 type PageState = "idle" | "submitting" | "success" | "invalid_token" | "error";
 
-export default function ResetPasswordPage() {
+// ── Inner component — safe to call useSearchParams() here ─────────
+function ResetPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
@@ -60,25 +60,16 @@ export default function ResetPasswordPage() {
 
   const passwordValue = watch("password", "");
 
-  // Validate token presence on mount
   useEffect(() => {
-    if (!token) {
-      setPageState("invalid_token");
-    }
+    if (!token) setPageState("invalid_token");
   }, [token]);
 
   const onSubmit = async (data: ResetPasswordFormData) => {
-    if (!token) {
-      setPageState("invalid_token");
-      return;
-    }
+    if (!token) { setPageState("invalid_token"); return; }
 
     try {
       setPageState("submitting");
-      await api.post("/auth/reset-password", {
-        token,
-        newPassword: data.password,
-      });
+      await api.post("/auth/reset-password", { token, newPassword: data.password });
       setPageState("success");
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number } })?.response?.status;
@@ -93,7 +84,6 @@ export default function ResetPasswordPage() {
     }
   };
 
-  // Password strength indicator
   const getStrength = (pw: string) => {
     let score = 0;
     if (pw.length >= 8) score++;
@@ -105,83 +95,66 @@ export default function ResetPasswordPage() {
 
   const strength = getStrength(passwordValue);
   const strengthLabel = ["", "Weak", "Fair", "Good", "Strong"][strength];
-  const strengthColor = [
-    "",
-    "bg-red-500",
-    "bg-orange-400",
-    "bg-yellow-400",
-    "bg-green-500",
-  ][strength];
+  const strengthColor = ["", "bg-red-500", "bg-orange-400", "bg-yellow-400", "bg-green-500"][strength];
 
-  // ── Success state ──────────────────────────────────────────────
+  // ── Success ────────────────────────────────────────────────────
   if (pageState === "success") {
     return (
-      <>
-        <Navbar />
-        <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-background to-muted/20">
-          <Card className="w-full max-w-md">
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <div className="flex justify-center mb-6">
-                  <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                    <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-400" />
-                  </div>
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-background to-muted/20">
+        <Card className="w-full max-w-md">
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <div className="flex justify-center mb-6">
+                <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                  <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-400" />
                 </div>
-                <CardTitle className="text-2xl mb-2">Password updated</CardTitle>
-                <CardDescription className="text-sm mb-8">
-                  Your password has been reset successfully. You can now sign in
-                  with your new password.
-                </CardDescription>
-                <Button
-                  className="w-full"
-                  size="lg"
-                  onClick={() => router.push("/login")}
-                >
-                  Go to sign in
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-      </>
+              <CardTitle className="text-2xl mb-2">Password updated</CardTitle>
+              <CardDescription className="text-sm mb-8">
+                Your password has been reset successfully. You can now sign in
+                with your new password.
+              </CardDescription>
+              <Button className="w-full" size="lg" onClick={() => router.push("/login")}>
+                Go to sign in
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
-  // ── Invalid / missing token state ─────────────────────────────
+  // ── Invalid token ──────────────────────────────────────────────
   if (pageState === "invalid_token") {
     return (
-      <>
-        <Navbar />
-        <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-background to-muted/20">
-          <Card className="w-full max-w-md">
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <div className="flex justify-center mb-6">
-                  <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-                    <AlertCircle className="h-8 w-8 text-red-600 dark:text-red-400" />
-                  </div>
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-background to-muted/20">
+        <Card className="w-full max-w-md">
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <div className="flex justify-center mb-6">
+                <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                  <AlertCircle className="h-8 w-8 text-red-600 dark:text-red-400" />
                 </div>
-                <CardTitle className="text-2xl mb-2">Link expired or invalid</CardTitle>
-                <CardDescription className="text-sm mb-8">
-                  This password reset link is no longer valid. Reset links expire
-                  after a short time for security. Please request a new one.
-                </CardDescription>
-                <Button asChild className="w-full" size="lg">
-                  <Link href="/forgot-password">Request a new link</Link>
-                </Button>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-      </>
+              <CardTitle className="text-2xl mb-2">Link expired or invalid</CardTitle>
+              <CardDescription className="text-sm mb-8">
+                This password reset link is no longer valid. Reset links expire
+                after a short time for security. Please request a new one.
+              </CardDescription>
+              <Button asChild className="w-full" size="lg">
+                <Link href="/forgot-password">Request a new link</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
-  // ── Main form ──────────────────────────────────────────────────
+  // ── Form ───────────────────────────────────────────────────────
   return (
     <>
-      <Navbar />
       <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-background to-muted/20">
         <Card className="w-full max-w-md">
           <CardHeader>
@@ -203,7 +176,7 @@ export default function ResetPasswordPage() {
 
           <CardContent>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-              {/* Password */}
+              {/* New password */}
               <div className="space-y-2">
                 <Label htmlFor="password">New password</Label>
                 <div className="relative">
@@ -223,11 +196,7 @@ export default function ResetPasswordPage() {
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                     aria-label={showPassword ? "Hide password" : "Show password"}
                   >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
 
@@ -248,13 +217,10 @@ export default function ResetPasswordPage() {
                       Strength:{" "}
                       <span
                         className={
-                          strength <= 1
-                            ? "text-red-500"
-                            : strength === 2
-                            ? "text-orange-400"
-                            : strength === 3
-                            ? "text-yellow-500"
-                            : "text-green-500"
+                          strength <= 1 ? "text-red-500"
+                          : strength === 2 ? "text-orange-400"
+                          : strength === 3 ? "text-yellow-500"
+                          : "text-green-500"
                         }
                       >
                         {strengthLabel}
@@ -264,9 +230,7 @@ export default function ResetPasswordPage() {
                 )}
 
                 {errors.password && (
-                  <p className="text-sm text-red-500 dark:text-red-400">
-                    {errors.password.message}
-                  </p>
+                  <p className="text-sm text-red-500 dark:text-red-400">{errors.password.message}</p>
                 )}
               </div>
 
@@ -289,25 +253,17 @@ export default function ResetPasswordPage() {
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                     aria-label={showConfirm ? "Hide password" : "Show password"}
                   >
-                    {showConfirm ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
+                    {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
                 {errors.confirmPassword && (
-                  <p className="text-sm text-red-500 dark:text-red-400">
-                    {errors.confirmPassword.message}
-                  </p>
+                  <p className="text-sm text-red-500 dark:text-red-400">{errors.confirmPassword.message}</p>
                 )}
               </div>
 
-              {/* Root / network error */}
+              {/* Network error */}
               {pageState === "error" && errorMessage && (
-                <p className="text-sm text-red-500 dark:text-red-400">
-                  {errorMessage}
-                </p>
+                <p className="text-sm text-red-500 dark:text-red-400">{errorMessage}</p>
               )}
 
               <Button
@@ -330,6 +286,30 @@ export default function ResetPasswordPage() {
         </Card>
       </div>
       <FooterSection />
+    </>
+  );
+}
+
+// ── Page export — wraps inner component in Suspense ───────────────
+export default function ResetPasswordPage() {
+  return (
+    <>
+      <Navbar />
+      <Suspense
+        fallback={
+          <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-background to-muted/20">
+            <Card className="w-full max-w-md">
+              <CardContent className="pt-10 pb-10">
+                <div className="flex justify-center">
+                  <div className="h-6 w-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        }
+      >
+        <ResetPasswordForm />
+      </Suspense>
     </>
   );
 }
