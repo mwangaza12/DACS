@@ -5,26 +5,83 @@ import { InsertAvailabilityType, UpdateAvailabilityType } from "./doctors.dto";
 
 export const getAllDoctorsService = async (page = 1, limit = 10) => {
     const offset = (page - 1) * limit;
-    return db.select().from(doctors).limit(limit).offset(offset);
+
+    return db.query.doctors.findMany({
+        limit,
+        offset,
+        with: {
+            user: {
+                columns: {
+                    email: true,
+                    phone: true,
+                    isActive: true,
+                },
+            },
+            availability: {
+                where: eq(doctorAvailability.isActive, true),
+                columns: {
+                    dayOfWeek: true,
+                    startTime: true,
+                    endTime: true,
+                    slotDuration: true,
+                },
+            },
+        },
+    });
 };
 
 export const getDoctorByIdService = async (doctorId: string) => {
-    const [doctor] = await db.select().from(doctors).where(eq(doctors.doctorId, doctorId));
+    const doctor = await db.query.doctors.findFirst({
+        where: eq(doctors.doctorId, doctorId),
+        with: {
+            user: {
+                columns: {
+                    email: true,
+                    phone: true,
+                    isActive: true,
+                },
+            },
+            availability: {
+                where: eq(doctorAvailability.isActive, true),
+            },
+            appointments: {
+                columns: {
+                    appointmentId: true,
+                    appointmentDate: true,
+                    appointmentTime: true,
+                    appointmentStatus: true,
+                    appointmentType: true,
+                },
+                limit: 5,
+            },
+        },
+    });
+
     return doctor ?? null;
 };
 
 export const getDoctorAvailabilityService = async (doctorId: string) => {
-    return db
-        .select()
-        .from(doctorAvailability)
-        .where(eq(doctorAvailability.doctorId, doctorId));
+    return db.query.doctorAvailability.findMany({
+        where: eq(doctorAvailability.doctorId, doctorId),
+        with: {
+            doctor: {
+                columns: {
+                    firstName: true,
+                    lastName: true,
+                    specialization: true,
+                    department: true,
+                },
+            },
+        },
+    });
 };
 
+// Upsert stays as-is — delete + re-insert is a write operation,
+// relational API is read-only so core API is correct here
 export const upsertDoctorAvailabilityService = async (
     doctorId: string,
     data: UpdateAvailabilityType[]
 ) => {
-    // Delete existing and re-insert
     await db.delete(doctorAvailability).where(eq(doctorAvailability.doctorId, doctorId));
 
     if (data.length === 0) return [];

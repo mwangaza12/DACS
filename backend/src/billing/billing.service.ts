@@ -7,19 +7,71 @@ import { paginate } from "../utils/pagination";
 export const getAllBillsService = async (patientId?: string, page = 1, limit = 10) => {
     const { limit: lim, offset } = paginate(page, limit);
 
-    // Build conditions array the same way appointments.service does
-    // so the .where() call is only made when there is actually a filter
-    const conditions = [];
-    if (patientId) conditions.push(eq(bills.patientId, patientId));
-
-    const query = db.select().from(bills);
-    if (conditions.length > 0) query.where(and(...conditions));
-
-    return query.limit(lim).offset(offset);
+    return db.query.bills.findMany({
+        where: patientId ? eq(bills.patientId, patientId) : undefined,
+        limit: lim,
+        offset,
+        with: {
+            patient: {
+                columns: {
+                    firstName: true,
+                    lastName: true,
+                },
+                with: {
+                    user: {
+                        columns: { email: true, phone: true },
+                    },
+                },
+            },
+            appointment: {
+                columns: {
+                    appointmentDate: true,
+                    appointmentTime: true,
+                    appointmentType: true,
+                    appointmentStatus: true,
+                },
+            },
+            insuranceClaims: true,
+        },
+    });
 };
 
 export const getBillByIdService = async (billId: string) => {
-    const [bill] = await db.select().from(bills).where(eq(bills.billId, billId));
+    const bill = await db.query.bills.findFirst({
+        where: eq(bills.billId, billId),
+        with: {
+            patient: {
+                columns: {
+                    firstName: true,
+                    lastName: true,
+                },
+                with: {
+                    user: {
+                        columns: { email: true, phone: true },
+                    },
+                },
+            },
+            appointment: {
+                columns: {
+                    appointmentDate: true,
+                    appointmentTime: true,
+                    appointmentType: true,
+                    appointmentStatus: true,
+                },
+                with: {
+                    doctor: {
+                        columns: {
+                            firstName: true,
+                            lastName: true,
+                            department: true,
+                        },
+                    },
+                },
+            },
+            insuranceClaims: true,
+        },
+    });
+
     return bill ?? null;
 };
 
@@ -67,5 +119,33 @@ export const processPaymentService = async (billId: string, data: PayBillType) =
 
 export const getInsuranceClaimsService = async (page = 1, limit = 10) => {
     const { limit: lim, offset } = paginate(page, limit);
-    return db.select().from(insuranceClaims).limit(lim).offset(offset);
+
+    return db.query.insuranceClaims.findMany({
+        limit: lim,
+        offset,
+        with: {
+            bill: {
+                columns: {
+                    amount: true,
+                    insuranceCovered: true,
+                    patientPayable: true,
+                    billStatus: true,
+                },
+                with: {
+                    patient: {
+                        columns: {
+                            firstName: true,
+                            lastName: true,
+                        },
+                    },
+                    appointment: {
+                        columns: {
+                            appointmentDate: true,
+                            appointmentType: true,
+                        },
+                    },
+                },
+            },
+        },
+    });
 };

@@ -16,6 +16,8 @@ import medicalRecordsRouter from "./medical-records/medical-records.routes";
 import billingRouter from "./billing/billing.routes";
 import reportsRouter from "./reports/reports.routes";
 import notificationsRouter from "./notifications/notifications.routes";
+import * as schema from "./db/schema";
+import * as relations from "./db/relations";
 
 dotenv.config();
 
@@ -36,7 +38,10 @@ const allowedOrigins = (process.env.CORS_ORIGINS ?? "http://localhost:3000")
 
 // Database
 const sql = neon(process.env.DATABASE_URL!);
-export const db = drizzle(sql, { casing: "snake_case" });
+export const db = drizzle(sql, { 
+    schema: { ...schema, ...relations },
+    casing: "snake_case" 
+});
 
 // App
 const app = express();

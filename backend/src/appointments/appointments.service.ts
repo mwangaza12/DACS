@@ -25,17 +25,41 @@ export const getAllAppointmentsService = async (filters: {
     if (filters.patientId) conditions.push(eq(appointments.patientId, filters.patientId));
     if (filters.doctorId) conditions.push(eq(appointments.doctorId, filters.doctorId));
 
-    const query = db.select().from(appointments);
-    if (conditions.length > 0) query.where(and(...conditions));
-
-    return query.limit(lim).offset(offset);
+    return db.query.appointments.findMany({
+        where: conditions.length > 0 ? and(...conditions) : undefined,
+        limit: lim,
+        offset,
+        with: {
+            patient: true,
+            doctor: true,
+        },
+    });
 };
 
 export const getAppointmentByIdService = async (appointmentId: string) => {
-    const [appointment] = await db
-        .select()
-        .from(appointments)
-        .where(eq(appointments.appointmentId, appointmentId));
+    const appointment = await db.query.appointments.findFirst({
+        where: eq(appointments.appointmentId, appointmentId),
+        with: {
+            patient: {
+                with: {
+                    user: {
+                        columns: {
+                            email: true,
+                        },
+                    },
+                },
+            },
+            doctor: {
+                columns: {
+                    firstName: true,
+                    lastName: true,
+                    consultationFee: true,
+                },
+            },
+            bill: true,
+            history: true,
+        },
+    });
     return appointment ?? null;
 };
 
@@ -100,26 +124,23 @@ export const cancelAppointmentService = async (appointmentId: string, reason?: s
 export const getAvailableSlotsService = async (doctorId: string, date: string) => {
     const dayOfWeek = new Date(date).getDay().toString() as "0"|"1"|"2"|"3"|"4"|"5"|"6";
 
-    const [availability] = await db
-        .select()
-        .from(doctorAvailability)
-        .where(
-            and(
-                eq(doctorAvailability.doctorId, doctorId),
-                eq(doctorAvailability.dayOfWeek, dayOfWeek),
-                eq(doctorAvailability.isActive, true)
-            )
-        );
+    const availability = await db.query.doctorAvailability.findFirst({
+        where: and(
+            eq(doctorAvailability.doctorId, doctorId),
+            eq(doctorAvailability.dayOfWeek, dayOfWeek),
+            eq(doctorAvailability.isActive, true)
+        ),
+    });
 
     if (!availability) return [];
 
-    const booked = await db
-        .select()
-        .from(appointments)
-        .where(and(
+    const booked = await db.query.appointments.findMany({
+        where: and(
             eq(appointments.doctorId, doctorId),
             eq(appointments.appointmentDate, date)
-        ));
+        ),
+        columns: { appointmentTime: true },
+    });
 
     const bookedTimes = new Set(booked.map((a) => a.appointmentTime));
     const slots: string[] = [];
@@ -143,26 +164,24 @@ export const getAvailableSlotsService = async (doctorId: string, date: string) =
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
-/**
- * Looks up the doctor's consultationFee and inserts a pending bill.
- * Called automatically when an appointment transitions to "completed".
- */
 const createBillForAppointment = async (
     appointmentId: string,
     patientId: string,
     doctorId: string
 ) => {
-    const [doctor] = await db
-        .select({ consultationFee: doctors.consultationFee })
-        .from(doctors)
-        .where(eq(doctors.doctorId, doctorId));
+    // Use relation to fetch doctor with consultationFee in one query
+    const doctor = await db.query.doctors.findFirst({
+        where: eq(doctors.doctorId, doctorId),
+        columns: { consultationFee: true },
+    });
 
     const fee = doctor?.consultationFee ?? "0";
 
-    const [existing] = await db
-        .select({ billId: bills.billId })
-        .from(bills)
-        .where(eq(bills.appointmentId, appointmentId));
+    // Check if bill already exists via relation
+    const existing = await db.query.bills.findFirst({
+        where: eq(bills.appointmentId, appointmentId),
+        columns: { billId: true },
+    });
 
     if (existing) return;
 
@@ -186,25 +205,45 @@ const createBillForAppointment = async (
 
 type AppointmentRow = typeof appointments.$inferSelect;
 
+/**
+ * Replaces the old two-query join with a single relational query.
+ * patients → user (for email), patient (for name)
+ */
 const getPatientEmailAndName = async (patientId: string) => {
-    const [row] = await db
-        .select({
-            email: users.email,
-            firstName: patients.firstName,
-            lastName: patients.lastName,
-        })
-        .from(patients)
-        .innerJoin(users, eq(users.userId, patients.patientId))
-        .where(eq(patients.patientId, patientId));
-    return row ?? null;
+    const patient = await db.query.patients.findFirst({
+        where: eq(patients.patientId, patientId),
+        columns: {
+            firstName: true,
+            lastName: true,
+        },
+        with: {
+            user: {
+                columns: { email: true },
+            },
+        },
+    });
+
+    if (!patient) return null;
+
+    return {
+        email: patient.user.email,
+        firstName: patient.firstName,
+        lastName: patient.lastName,
+    };
 };
 
+/**
+ * Replaces the old select query — fetches doctor name via relation.
+ */
 const getDoctorName = async (doctorId: string) => {
-    const [row] = await db
-        .select({ firstName: doctors.firstName, lastName: doctors.lastName })
-        .from(doctors)
-        .where(eq(doctors.doctorId, doctorId));
-    return row ? `Dr. ${row.firstName} ${row.lastName}` : "Your Doctor";
+    const doctor = await db.query.doctors.findFirst({
+        where: eq(doctors.doctorId, doctorId),
+        columns: {
+            firstName: true,
+            lastName: true,
+        },
+    });
+    return doctor ? `Dr. ${doctor.firstName} ${doctor.lastName}` : "Your Doctor";
 };
 
 const formatDate = (d: string) =>
