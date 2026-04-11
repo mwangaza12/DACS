@@ -34,15 +34,32 @@ const PAGE_SIZE = 12;
 
 export default function PatientsPage() {
   const router = useRouter();
-  const [sorting, setSorting]       = useState<SortingState>([]);
+  const [sorting, setSorting]           = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
   const [genderFilter, setGenderFilter] = useState("all");
-  const [page, setPage]             = useState(1);
+  const [page, setPage]                 = useState(1);
 
   const { data: patients, isLoading } = useQuery({
     queryKey: ["patients"],
     queryFn: () => fetchPatients(1, 500),
   });
+
+  // Map PatientWithUser → PatientRow so columns and data share the same type.
+  // PatientWithUser extends PatientProfile, so firstName/lastName etc. are
+  // directly on the object — not nested under .user
+  const rows = useMemo<PatientRow[]>(
+    () =>
+      (patients ?? []).map((p) => ({
+        patientId:         p.patientId,
+        firstName:         p.firstName,
+        lastName:          p.lastName,
+        dateOfBirth:       p.dateOfBirth,
+        gender:            p.gender,
+        insuranceProvider: p.insuranceProvider ?? null,
+        nationalId:        p.nationalId ?? null,
+      })),
+    [patients]
+  );
 
   const columns = useMemo<ColumnDef<PatientRow>[]>(
     () => [
@@ -130,19 +147,19 @@ export default function PatientsPage() {
   );
 
   const filtered = useMemo(() => {
-    let rows = patients ?? [];
-    if (genderFilter !== "all") rows = rows.filter((r) => r.gender === genderFilter);
+    let data = rows;
+    if (genderFilter !== "all") data = data.filter((r) => r.gender === genderFilter);
     if (globalFilter) {
       const q = globalFilter.toLowerCase();
-      rows = rows.filter(
+      data = data.filter(
         (r) =>
           `${r.firstName} ${r.lastName}`.toLowerCase().includes(q) ||
           r.nationalId?.toLowerCase().includes(q) ||
           r.insuranceProvider?.toLowerCase().includes(q)
       );
     }
-    return rows;
-  }, [patients, globalFilter, genderFilter]);
+    return data;
+  }, [rows, globalFilter, genderFilter]);
 
   const total      = filtered.length;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -198,11 +215,10 @@ export default function PatientsPage() {
           </p>
         </div>
 
-        {/* ✅ FIXED TABLE */}
+        {/* Table */}
         <div className="rounded-2xl border border-border">
           <div className="w-full overflow-x-auto">
             <div className="inline-block min-w-full align-middle">
-
               <table className="min-w-[650px] w-full">
                 <thead>
                   {table.getHeaderGroups().map((hg) => (
@@ -262,7 +278,6 @@ export default function PatientsPage() {
                   }
                 </tbody>
               </table>
-
             </div>
           </div>
         </div>

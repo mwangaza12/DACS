@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchRevenueReport, fetchNoShowReport } from "@/lib/queries";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TrendingUp, AlertTriangle, DollarSign } from "lucide-react";
+import { AlertTriangle, DollarSign } from "lucide-react";
 
 function fmt(val: string | number) {
   const n = Number(val);
@@ -14,12 +14,12 @@ function fmt(val: string | number) {
 export function RevenueCard() {
   const { data: rev, isLoading: revLoading } = useQuery({
     queryKey: ["revenue-report"],
-    queryFn: fetchRevenueReport,
+    queryFn: () => fetchRevenueReport(),
   });
 
   const { data: noShow, isLoading: nsLoading } = useQuery({
     queryKey: ["no-show-report"],
-    queryFn: fetchNoShowReport,
+    queryFn: () => fetchNoShowReport(),
   });
 
   const loading = revLoading || nsLoading;
@@ -87,7 +87,6 @@ export function RevenueCard() {
             <p className="font-display font-bold text-3xl text-text-primary leading-none tracking-tight">
               {noShow?.rate ?? "0%"}
             </p>
-            {/* Progress bar */}
             <div className="w-full h-1.5 bg-surface rounded-full overflow-hidden">
               <div
                 className="h-full bg-warning rounded-full transition-all duration-500"

@@ -7,10 +7,10 @@ import {
   PieChart, Pie, Cell, AreaChart, Area, CartesianGrid,
 } from "recharts";
 import {
-  fetchReportAppointments,
-  fetchReportRevenue,
-  fetchReportNoShow,
-  fetchReportDemographics,
+  fetchAppointmentReport,
+  fetchRevenueReport,
+  fetchNoShowReport,
+  fetchPatientDemographics,
 } from "@/lib/queries";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -79,22 +79,22 @@ export default function ReportsPage() {
 
   const { data: apptData, isLoading: apptLoading } = useQuery({
     queryKey: ["report-appointments", from, to],
-    queryFn: () => fetchReportAppointments(from || undefined, to || undefined),
+    queryFn: () => fetchAppointmentReport(from || undefined, to || undefined),
   });
 
   const { data: revenue, isLoading: revLoading } = useQuery({
     queryKey: ["report-revenue"],
-    queryFn: () => fetchReportRevenue(),
+    queryFn: () => fetchRevenueReport(),
   });
 
   const { data: noShow, isLoading: nsLoading } = useQuery({
     queryKey: ["report-noshow"],
-    queryFn: () => fetchReportNoShow(),
+    queryFn: () => fetchNoShowReport(),
   });
 
   const { data: demographics, isLoading: demoLoading } = useQuery({
     queryKey: ["report-demographics"],
-    queryFn: fetchReportDemographics,
+    queryFn: fetchPatientDemographics,
   });
 
   const apptChartData = (apptData ?? []).map((d) => ({
@@ -115,7 +115,6 @@ export default function ReportsPage() {
 
   const totalPatients = genderData.reduce((s, d) => s + d.total, 0);
 
-  // Simulated area chart data using appointment statuses as time proxies
   const areaData = apptChartData.map((d) => ({
     name: d.label,
     value: d.total,
@@ -277,9 +276,7 @@ export default function ReportsPage() {
                       <Cell key={i} fill={GENDER_COLORS[i % GENDER_COLORS.length]} fillOpacity={0.9} />
                     ))}
                   </Pie>
-                  <Tooltip
-                    content={<ChartTooltip labelKey="label" valueKey="total" />}
-                  />
+                  <Tooltip content={<ChartTooltip labelKey="label" valueKey="total" />} />
                 </PieChart>
               </ResponsiveContainer>
 
@@ -372,7 +369,6 @@ export default function ReportsPage() {
             </div>
           ) : (
             <div className="flex flex-col gap-4">
-              {/* Big rate number */}
               <div className="text-center py-4">
                 <p className="font-display font-bold text-5xl text-yellow-500 leading-none">
                   {noShow?.rate ?? "0%"}
@@ -380,7 +376,6 @@ export default function ReportsPage() {
                 <p className="text-xs text-muted-foreground mt-2">no-show rate</p>
               </div>
 
-              {/* Progress bar */}
               <div className="w-full h-2 bg-accent rounded-full overflow-hidden">
                 <div
                   className="h-full bg-yellow-500 rounded-full transition-all duration-700"
@@ -388,7 +383,6 @@ export default function ReportsPage() {
                 />
               </div>
 
-              {/* Stats */}
               <div className="grid grid-cols-2 gap-2">
                 <div className="p-3 rounded-xl bg-accent border border-border text-center">
                   <p className="font-display font-bold text-lg text-red-500">{Number(noShow?.noShows ?? 0)}</p>
