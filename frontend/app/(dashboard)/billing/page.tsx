@@ -17,7 +17,8 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
-import { CreditCard, CheckCircle, X, Search, DollarSign } from "lucide-react";
+import { CreditCard, CheckCircle, X, Search, DollarSign, User, Calendar } from "lucide-react";
+import type { BillWithRelations } from "@/types";
 
 const BILL_STATUS_STYLES: Record<string, { bg: string; text: string; border: string }> = {
   pending:           { bg: "bg-yellow-500/10",  text: "text-yellow-500",  border: "border-yellow-500/20" },
@@ -42,29 +43,13 @@ function fmt(val: string | null | undefined) {
   return isNaN(n) ? "—" : `KES ${n.toLocaleString("en-KE", { minimumFractionDigits: 0 })}`;
 }
 
-type Bill = {
-  billId: string;
-  appointmentId: string | null;
-  patientId: string;
-  amount: string | null;
-  insuranceCovered: string | null;
-  patientPayable: string;
-  billStatus: string;
-  paymentMethod: string | null;
-  paymentDate: string | null;
-  createdAt: string;
-};
-
-interface PayModalProps {
-  bill: Bill;
-  onClose: () => void;
-}
-
-function PayModal({ bill, onClose }: PayModalProps) {
+function PayModal({ bill, onClose }: { bill: BillWithRelations; onClose: () => void }) {
   const queryClient = useQueryClient();
   const [method, setMethod] = useState("mpesa");
   const [amount, setAmount] = useState(bill.patientPayable);
   const [error, setError]   = useState<string | null>(null);
+
+  const patientName = `${bill.patient.firstName} ${bill.patient.lastName}`;
 
   const mutation = useMutation({
     mutationFn: () => payBill(bill.billId, { paymentMethod: method, amount: Number(amount) }),
@@ -74,7 +59,9 @@ function PayModal({ bill, onClose }: PayModalProps) {
       onClose();
     },
     onError: (err: unknown) => {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? "Payment failed.";
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+        ?? "Payment failed.";
       setError(msg);
     },
   });
@@ -89,7 +76,10 @@ function PayModal({ bill, onClose }: PayModalProps) {
               <div className="w-8 h-8 rounded-xl bg-green-500/10 border border-green-500/20 flex items-center justify-center">
                 <DollarSign size={15} className="text-green-500" />
               </div>
-              <p className="font-display font-bold text-base text-foreground">Process payment</p>
+              <div>
+                <p className="font-display font-bold text-base text-foreground">Process payment</p>
+                <p className="text-xs text-muted-foreground">{patientName}</p>
+              </div>
             </div>
             <button
               onClick={onClose}
@@ -99,8 +89,33 @@ function PayModal({ bill, onClose }: PayModalProps) {
             </button>
           </div>
 
+          {/* Bill breakdown */}
           <div className="p-4 rounded-xl bg-accent border border-border mb-5 flex flex-col gap-2">
-            <div className="flex justify-between text-xs">
+            {/* Patient & appointment context */}
+            <div className="flex items-center gap-1.5 mb-1">
+              <User size={11} className="text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">{patientName}</span>
+              {bill.patient.user?.email && (
+                <span className="text-xs text-muted-foreground">· {bill.patient.user.email}</span>
+              )}
+            </div>
+            {bill.appointment && (
+              <div className="flex items-center gap-1.5 mb-2">
+                <Calendar size={11} className="text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">
+                  {(() => {
+                    try { return format(parseISO(bill.appointment.appointmentDate), "MMM d, yyyy"); }
+                    catch { return bill.appointment.appointmentDate; }
+                  })()}
+                  {" · "}
+                  <span className="capitalize">{bill.appointment.appointmentType}</span>
+                </span>
+              </div>
+            )}
+
+            <div className="h-px bg-border" />
+
+            <div className="flex justify-between text-xs mt-1">
               <span className="text-muted-foreground">Total amount</span>
               <span className="text-foreground font-medium">{fmt(bill.amount)}</span>
             </div>
@@ -168,10 +183,10 @@ function PayModal({ bill, onClose }: PayModalProps) {
 }
 
 export default function BillingPage() {
-  const [search, setSearch]       = useState("");
-  const [statusFilter, setStatus] = useState("all");
-  const [payingBill, setPayingBill] = useState<Bill | null>(null);
-  const [page, setPage]           = useState(1);
+  const [search, setSearch]         = useState("");
+  const [statusFilter, setStatus]   = useState("all");
+  const [payingBill, setPayingBill] = useState<BillWithRelations | null>(null);
+  const [page, setPage]             = useState(1);
 
   const { data: bills, isLoading } = useQuery({
     queryKey: ["bills"],
@@ -183,7 +198,14 @@ export default function BillingPage() {
       if (statusFilter !== "all" && b.billStatus !== statusFilter) return false;
       if (search) {
         const q = search.toLowerCase();
-        return b.billId.toLowerCase().includes(q) || b.patientId.toLowerCase().includes(q);
+        // Search by patient name, email, or bill ID
+        const patientName = `${b.patient.firstName} ${b.patient.lastName}`.toLowerCase();
+        const email       = b.patient.user?.email?.toLowerCase() ?? "";
+        return (
+          patientName.includes(q) ||
+          email.includes(q) ||
+          b.billId.toLowerCase().includes(q)
+        );
       }
       return true;
     });
@@ -197,7 +219,6 @@ export default function BillingPage() {
   const handleSearch = (val: string) => { setSearch(val); setPage(1); };
   const handleStatus = (val: string) => { setStatus(val); setPage(1); };
 
-  // Totals (over all filtered, not just current page)
   const totalPending = filtered
     .filter((b) => b.billStatus === "pending")
     .reduce((s, b) => s + Number(b.patientPayable), 0);
@@ -205,14 +226,14 @@ export default function BillingPage() {
   return (
     <>
       <div className="w-full overflow-x-hidden">
-        {/* Summary row - responsive grid */}
+        {/* Summary row */}
         <div className="px-4 py-2">
           <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-5">
             {[
-              { label: "Total bills",     value: filtered.length,                                          accent: "text-foreground" },
-              { label: "Pending",         value: filtered.filter((b) => b.billStatus === "pending").length, accent: "text-yellow-500" },
-              { label: "Paid",            value: filtered.filter((b) => b.billStatus === "paid").length,    accent: "text-green-500" },
-              { label: "Pending amount",  value: `KES ${totalPending.toLocaleString()}`,                    accent: "text-red-500" },
+              { label: "Total bills",    value: filtered.length,                                           accent: "text-foreground" },
+              { label: "Pending",        value: filtered.filter((b) => b.billStatus === "pending").length, accent: "text-yellow-500" },
+              { label: "Paid",           value: filtered.filter((b) => b.billStatus === "paid").length,    accent: "text-green-500" },
+              { label: "Pending amount", value: `KES ${totalPending.toLocaleString()}`,                    accent: "text-red-500" },
             ].map((s) => (
               <div key={s.label} className="p-3 sm:p-4 rounded-2xl bg-card border border-border">
                 <p className="text-xs text-muted-foreground mb-1 truncate">{s.label}</p>
@@ -222,25 +243,23 @@ export default function BillingPage() {
           </div>
         </div>
 
-        {/* Toolbar - responsive stacking */}
+        {/* Toolbar */}
         <div className="px-4 py-2">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 justify-between mb-4">
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
-              {/* Search - full width on mobile */}
-              <div className="flex items-center gap-2 h-9 px-3 rounded-xl bg-card border border-border focus-within:border-primary-500/50 transition-all w-full sm:w-auto sm:min-w-[200px]">
+              <div className="flex items-center gap-2 h-9 px-3 rounded-xl bg-card border border-border focus-within:border-primary-500/50 transition-all w-full sm:w-auto sm:min-w-[220px]">
                 <Search size={13} className="text-muted-foreground flex-shrink-0" />
                 <input
                   value={search}
                   onChange={(e) => handleSearch(e.target.value)}
-                  placeholder="Search bills…"
+                  placeholder="Search by patient name or email…"
                   className="bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none w-full"
                 />
               </div>
 
-              {/* Status filter - full width on mobile */}
               <div className="w-full sm:w-auto">
                 <Select value={statusFilter} onValueChange={handleStatus}>
-                  <SelectTrigger className="w-full sm:w-[140px] h-9">
+                  <SelectTrigger className="w-full sm:w-[160px] h-9">
                     <SelectValue placeholder="All statuses" />
                   </SelectTrigger>
                   <SelectContent>
@@ -253,12 +272,11 @@ export default function BillingPage() {
                 </Select>
               </div>
             </div>
-            
+
             <p className="text-xs text-muted-foreground text-left sm:text-right">
               {isLoading
                 ? "Loading…"
-                : `${total} bill${total !== 1 ? "s" : ""}${total > PAGE_SIZE ? ` · page ${safePage} of ${totalPages}` : ""}`
-              }
+                : `${total} bill${total !== 1 ? "s" : ""}${total > PAGE_SIZE ? ` · page ${safePage} of ${totalPages}` : ""}`}
             </p>
           </div>
         </div>
@@ -267,7 +285,9 @@ export default function BillingPage() {
         <div className="px-4 py-2">
           {isLoading ? (
             <div className="flex flex-col gap-3">
-              {Array.from({ length: PAGE_SIZE }).map((_, i) => <Skeleton key={i} className="h-20 rounded-2xl" />)}
+              {Array.from({ length: PAGE_SIZE }).map((_, i) => (
+                <Skeleton key={i} className="h-24 rounded-2xl" />
+              ))}
             </div>
           ) : !filtered.length ? (
             <div className="flex flex-col items-center justify-center gap-3 h-48 rounded-2xl border border-dashed border-border text-muted-foreground">
@@ -278,20 +298,32 @@ export default function BillingPage() {
             <>
               <div className="flex flex-col gap-3">
                 {pageRows.map((bill) => {
-                  const style = BILL_STATUS_STYLES[bill.billStatus] ?? BILL_STATUS_STYLES.pending;
+                  const style      = BILL_STATUS_STYLES[bill.billStatus] ?? BILL_STATUS_STYLES.pending;
+                  const patientName = `${bill.patient.firstName} ${bill.patient.lastName}`;
+                  const email       = bill.patient.user?.email;
+
+                  const apptDateStr = bill.appointment ? (() => {
+                    try { return format(parseISO(bill.appointment.appointmentDate), "MMM d, yyyy"); }
+                    catch { return bill.appointment.appointmentDate; }
+                  })() : null;
+
                   const createdStr = (() => {
                     try { return format(parseISO(bill.createdAt), "MMM d, yyyy"); }
                     catch { return ""; }
                   })();
 
                   return (
-                    <div key={bill.billId} className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-4 rounded-2xl bg-card border border-border hover:border-border/80 transition-all">
-                      <div className="flex items-center gap-3">
+                    <div
+                      key={bill.billId}
+                      className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-4 rounded-2xl bg-card border border-border hover:border-border/80 transition-all"
+                    >
+                      <div className="flex items-start gap-3 flex-1 min-w-0">
                         <div className="w-10 h-10 rounded-xl bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center flex-shrink-0">
                           <CreditCard size={16} className="text-yellow-500" />
                         </div>
 
                         <div className="flex-1 min-w-0">
+                          {/* Amount + status */}
                           <div className="flex flex-wrap items-center gap-2 mb-1">
                             <p className="text-sm font-medium text-foreground">{fmt(bill.amount)}</p>
                             <span className={cn(
@@ -301,26 +333,54 @@ export default function BillingPage() {
                               {bill.billStatus.replace("_", " ")}
                             </span>
                           </div>
-                          <p className="text-xs text-muted-foreground break-words">
-                            Patient owes <span className="text-foreground">{fmt(bill.patientPayable)}</span>
-                            {Number(bill.insuranceCovered ?? 0) > 0 && ` · Insurance: ${fmt(bill.insuranceCovered)}`}
-                            {createdStr && ` · ${createdStr}`}
+
+                          {/* Patient name + email */}
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            <User size={11} className="text-muted-foreground shrink-0" />
+                            <p className="text-xs text-foreground font-medium truncate">{patientName}</p>
+                            {email && (
+                              <p className="text-xs text-muted-foreground truncate hidden sm:block">· {email}</p>
+                            )}
+                          </div>
+
+                          {/* Appointment context */}
+                          <p className="text-xs text-muted-foreground">
+                            {apptDateStr && (
+                              <>
+                                <Calendar size={10} className="inline mr-1 text-muted-foreground" />
+                                <span className="capitalize">{bill.appointment?.appointmentType}</span>
+                                {" · "}{apptDateStr}
+                                {" · "}
+                              </>
+                            )}
+                            Owes <span className="text-foreground">{fmt(bill.patientPayable)}</span>
+                            {Number(bill.insuranceCovered ?? 0) > 0 &&
+                              ` · Insurance: ${fmt(bill.insuranceCovered)}`}
+                            {createdStr && ` · Billed ${createdStr}`}
                           </p>
                         </div>
                       </div>
 
-                      <div className="flex justify-end sm:justify-start">
-                        {bill.billStatus !== "paid" && bill.billStatus !== "written_off" && (
-                          <Button size="sm" variant="outline" onClick={() => setPayingBill(bill)} className="w-full sm:w-auto">
+                      <div className="flex justify-end sm:justify-start shrink-0">
+                        {bill.billStatus !== "paid" && bill.billStatus !== "written_off" ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setPayingBill(bill)}
+                            className="w-full sm:w-auto"
+                          >
                             <DollarSign className="mr-1 h-3 w-3" /> Pay
                           </Button>
-                        )}
-                        {bill.billStatus === "paid" && (
+                        ) : bill.billStatus === "paid" ? (
                           <div className="flex items-center gap-1.5 text-xs text-green-500">
                             <CheckCircle className="h-3 w-3" />
-                            {bill.paymentMethod && <span className="capitalize truncate">{bill.paymentMethod.replace("_", " ")}</span>}
+                            {bill.paymentMethod && (
+                              <span className="capitalize truncate">
+                                {bill.paymentMethod.replace("_", " ")}
+                              </span>
+                            )}
                           </div>
-                        )}
+                        ) : null}
                       </div>
                     </div>
                   );
