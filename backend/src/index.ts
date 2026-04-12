@@ -18,6 +18,7 @@ import reportsRouter from "./reports/reports.routes";
 import notificationsRouter from "./notifications/notifications.routes";
 import * as schema from "./db/schema";
 import * as relations from "./db/relations";
+import { markStaleAppointmentsJob } from "./jobs/appointment-status.job";
 
 dotenv.config();
 
@@ -111,7 +112,11 @@ app.use((_req, res: Response) => {
 
 app.use(errorHandler);
 
-app.listen(PORT, () => {
+app.listen(PORT, async() => {
     console.log(`[DACS] Running on http://localhost:${PORT} (${NODE_ENV})`);
     console.log(`[DACS] CORS allowed origins: ${allowedOrigins.join(", ")}`);
+
+    // Run once immediately on startup to catch any overnight strays
+    await markStaleAppointmentsJob();
+    setInterval(markStaleAppointmentsJob, 24 * 60 * 60 * 1000);
 });
