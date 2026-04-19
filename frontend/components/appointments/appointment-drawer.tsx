@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchAppointmentById, updateAppointment, cancelAppointment } from "@/lib/queries";
+import { fetchAppointmentById, updateAppointment, cancelAppointment, fetchAvailableSlots } from "@/lib/queries";
 import { StatusBadge, TypeBadge } from "./status-badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -10,8 +10,9 @@ import { cn } from "@/lib/utils";
 import { format, parseISO } from "date-fns";
 import {
   X, Calendar, Clock, User, Stethoscope, FileText,
-  CheckCircle, XCircle, AlertTriangle, RotateCcw,
+  CheckCircle, XCircle, AlertTriangle, RotateCcw, CalendarClock,
 } from "lucide-react";
+import { SlotPicker } from "@/components/appointments/slot-picker";
 import { useAuthStore } from "@/store/auth.store";
 import { APPOINTMENT_STATUSES, STATUS_LABELS } from "@/lib/appointment-utils";
 
@@ -39,12 +40,18 @@ const STATUS_ICONS: Record<string, React.ReactNode> = {
 };
 
 export function AppointmentDrawer({ appointmentId, onClose }: AppointmentDrawerProps) {
-  const { isAdmin, isDoctor } = useAuthStore();
+  const { isAdmin, isDoctor, isPatient } = useAuthStore();
   const queryClient = useQueryClient();
   const [cancelReason, setCancelReason] = useState("");
   const [showCancelInput, setShowCancelInput] = useState(false);
+  const [showReschedule, setShowReschedule] = useState(false);
+  const [rescheduleDate, setRescheduleDate] = useState("");
+  const [rescheduleSlot, setRescheduleSlot] = useState("");
+  const [rescheduleError, setRescheduleError] = useState<string | null>(null);
 
   const canEdit = isAdmin() || isDoctor();
+  const canReschedule = isPatient();
+  const RESCHEDULABLE = ["scheduled", "confirmed", "rescheduled"];
 
   const { data: appt, isLoading } = useQuery({
     queryKey: ["appointment", appointmentId],
@@ -85,6 +92,28 @@ export function AppointmentDrawer({ appointmentId, onClose }: AppointmentDrawerP
   const handleCancel = () => {
     if (!appointmentId) return;
     cancelMutation.mutate({ id: appointmentId, reason: cancelReason });
+  };
+
+  const handleReschedule = () => {
+    if (!appointmentId || !rescheduleDate || !rescheduleSlot) {
+      setRescheduleError("Please select both a date and a time slot.");
+      return;
+    }
+    setRescheduleError(null);
+    updateMutation.mutate({
+      id: appointmentId,
+      data: {
+        appointmentDate: rescheduleDate,
+        appointmentTime: rescheduleSlot,
+        appointmentStatus: "rescheduled",
+      },
+    }, {
+      onSuccess: () => {
+        setShowReschedule(false);
+        setRescheduleDate("");
+        setRescheduleSlot("");
+      },
+    });
   };
 
   const transitions = appt ? (STATUS_TRANSITIONS[appt.appointmentStatus] ?? []) : [];
@@ -203,6 +232,89 @@ export function AppointmentDrawer({ appointmentId, onClose }: AppointmentDrawerP
                   <p className="text-[11px] text-red-500/70 font-body uppercase tracking-wider mb-1">Cancellation reason</p>
                   <p className="text-sm text-red-500/80 font-body">{appt.cancellationReason}</p>
                 </div>
+              )}
+
+              {/* Reschedule — patient only, for active appointments */}
+              {canReschedule && RESCHEDULABLE.includes(appt.appointmentStatus) && !showCancelInput && (
+                <>
+                  {!showReschedule ? (
+                    <Button
+                      variant="outline"
+                      className="w-full gap-2 border-primary/30 text-primary hover:bg-primary/10"
+                      onClick={() => setShowReschedule(true)}
+                    >
+                      <CalendarClock size={15} />
+                      Reschedule appointment
+                    </Button>
+                  ) : (
+                    <div className="flex flex-col gap-4 p-4 rounded-xl bg-card border border-primary/20">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold text-foreground flex items-center gap-2">
+                          <CalendarClock size={15} className="text-primary" />
+                          Pick a new date & time
+                        </p>
+                        <button
+                          onClick={() => { setShowReschedule(false); setRescheduleDate(""); setRescheduleSlot(""); setRescheduleError(null); }}
+                          className="text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+
+                      {/* Date picker */}
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[11px] text-muted-foreground uppercase tracking-wider font-semibold">
+                          New date
+                        </label>
+                        <input
+                          type="date"
+                          value={rescheduleDate}
+                          min={new Date().toISOString().split("T")[0]}
+                          onChange={(e) => { setRescheduleDate(e.target.value); setRescheduleSlot(""); }}
+                          className="w-full bg-background border border-border rounded-xl px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+                        />
+                      </div>
+
+                      {/* Slot picker reuses existing component */}
+                      {rescheduleDate && (
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-[11px] text-muted-foreground uppercase tracking-wider font-semibold">
+                            Available slots
+                          </label>
+                          <SlotPicker
+                            doctorId={appt.doctorId}
+                            date={rescheduleDate}
+                            value={rescheduleSlot}
+                            onChange={setRescheduleSlot}
+                          />
+                        </div>
+                      )}
+
+                      {rescheduleError && (
+                        <p className="text-xs text-red-400">{rescheduleError}</p>
+                      )}
+
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                          onClick={() => { setShowReschedule(false); setRescheduleDate(""); setRescheduleSlot(""); setRescheduleError(null); }}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="flex-1"
+                          disabled={!rescheduleDate || !rescheduleSlot || updateMutation.isPending}
+                          onClick={handleReschedule}
+                        >
+                          {updateMutation.isPending ? "Saving…" : "Confirm reschedule"}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
 
               {/* Status actions — admin/doctor only */}
