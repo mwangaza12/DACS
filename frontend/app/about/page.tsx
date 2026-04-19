@@ -12,7 +12,7 @@ export default function AboutPage() {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}
           <div className="text-center mb-12 animate-fade-up">
-            <h1 className="text-4xl md:text-5xl font-bold mb-4">About MediBook</h1>
+            <h1 className="text-4xl md:text-5xl font-bold mb-4">About DACS</h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
               Revolutionizing healthcare access through technology and compassion
             </p>

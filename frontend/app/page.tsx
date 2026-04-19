@@ -44,13 +44,13 @@ const Header = () => {
 
           <div className="flex items-center gap-4 sm:justify-center">
             <Button asChild size="lg">
-              <Link href="/appointment">
+              <Link href="/appointments/new">
                 Book Appointment
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
             <Button asChild variant="ghost" size="lg">
-              <Link href="">Find Doctors</Link>
+              <Link href="/doctors">Find Doctors</Link>
             </Button>
           </div>
         </div>
@@ -179,7 +179,7 @@ const Step = () => {
           to care in four steps
         </h2>
         <p className="text-base text-muted-foreground md:text-lg">
-          Getting the care you need has never been simpler. Here's how MediBook
+          Getting the care you need has never been simpler. Here's how DACS
           works from start to finish.
         </p>
       </div>
@@ -208,7 +208,7 @@ const Step = () => {
 
       <div className="text-center">
         <Button asChild size="lg">
-          <Link href="/appointment">
+          <Link href="/appointments/new">
             Book Your Appointment
             <ArrowRight className="ml-2 h-4 w-4" />
           </Link>
@@ -222,7 +222,7 @@ const Step = () => {
 const Statistic = () => {
   const stats = [
     { value: "500+", label: "Expert Doctors", body: "Board-certified specialists across 20+ medical fields." },
-    { value: "10K+", label: "Happy Patients", body: "Patients who've found consistent, quality care through MediBook." },
+    { value: "10K+", label: "Happy Patients", body: "Patients who've found consistent, quality care through DACS." },
     { value: "98%", label: "Satisfaction Rate", body: "Of our patients rate their experience as excellent or very good." },
     { value: "24/7", label: "Always Available", body: "Care coordination support available around the clock, every day." },
   ];
@@ -295,7 +295,7 @@ const Blog = () => {
           </h2>
         </div>
         <Button asChild variant="ghost" className="hidden sm:flex">
-          <Link href="/blog">
+          <Link href="/dashboard">
             View all articles <ArrowRight className="ml-2 h-4 w-4" />
           </Link>
         </Button>
@@ -355,12 +355,12 @@ export default function HomePage() {
                 Ready to get started?
               </h2>
               <p className="opacity-80 max-w-md">
-                Join thousands of patients who trust MediBook for their everyday
+                Join thousands of patients who trust DACS for their everyday
                 healthcare needs.
               </p>
             </div>
             <Button asChild variant="secondary" size="lg" className="shrink-0">
-              <Link href="/appointment">
+              <Link href="/appointments/new">
                 Book Your First Appointment
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>

@@ -24,7 +24,7 @@ export function Navbar() {
           {/* Logo - Left */}
           <Link href="/" className="flex items-center space-x-2 hover:scale-105 transition-transform duration-300">
             <Stethoscope className="h-6 w-6 text-primary" />
-            <span className="text-xl font-bold">MediBook</span>
+            <span className="text-xl font-bold">DACS</span>
           </Link>
 
           {/* Desktop Navigation - Center */}

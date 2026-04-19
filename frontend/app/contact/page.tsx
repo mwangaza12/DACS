@@ -84,8 +84,8 @@ export default function ContactPage() {
                     <Mail className="h-5 w-5 text-primary mt-0.5" />
                     <div>
                       <p className="font-medium">Email Us</p>
-                      <a href="mailto:support@medibook.com" className="text-sm text-muted-foreground hover:text-primary transition-colors">
-                        support@medibook.com
+                      <a href="mailto:support@dacs.com" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                        support@dacs.com
                       </a>
                     </div>
                   </div>
