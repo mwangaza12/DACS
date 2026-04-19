@@ -7,7 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   LayoutDashboard, Calendar, Users, Stethoscope,
   FileText, CreditCard, BarChart3, Bell,
-  LogOut, Settings, AlertTriangle, X, UserCog,
+  LogOut, Settings, AlertTriangle, X, UserCog, Send,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
 import { fetchAllNotifications } from "@/lib/queries";
@@ -43,6 +43,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/patients",        label: "Patients",        icon: <Users size={16} />,           roles: ["admin", "doctor"] },
   { href: "/doctors",         label: "Doctors",         icon: <Stethoscope size={16} />,     roles: ["admin"] },
   { href: "/user-management", label: "User Management", icon: <UserCog size={16} />, roles: ["admin"] },
+  { href: "/send-notifications", label: "Send Notifications", icon: <Send size={16} />, roles: ["admin"] },
   { href: "/medical-records", label: "Medical Records", icon: <FileText size={16} />,        roles: ["admin", "doctor", "patient"] },
   { href: "/billing",         label: "Billing",         icon: <CreditCard size={16} />,      roles: ["admin", "patient"] },
   { href: "/reports",         label: "Reports",         icon: <BarChart3 size={16} />,       roles: ["admin", "doctor"] },

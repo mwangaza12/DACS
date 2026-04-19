@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchDoctorById, fetchDoctorAvailability, updateDoctorAvailability } from "@/lib/queries";
+import { useAuthStore } from "@/store/auth.store";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
@@ -51,6 +52,11 @@ export default function DoctorDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { isAdmin, isDoctor } = useAuthStore();
+
+  // Only admin and the doctor themselves can edit the schedule
+  const canEditSchedule = isAdmin() || isDoctor();
+
   const [editingAvailability, setEditingAvailability] = useState(false);
   const [slots, setSlots] = useState<AvailabilitySlot[]>([]);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -67,7 +73,6 @@ export default function DoctorDetailPage() {
     enabled: !!id,
   });
 
-  // Sync availability into editable slots when not editing
   const currentSlots = editingAvailability
     ? slots
     : (availability ?? []).map((s: AvailabilityRecord) => ({
@@ -180,31 +185,34 @@ export default function DoctorDetailPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            {saveSuccess && (
-              <div className="flex items-center gap-1.5 text-xs text-green-500 animate-fade-in">
-                <CheckCircle className="h-3 w-3" /> Saved
-              </div>
-            )}
-            {editingAvailability ? (
-              <>
-                <Button variant="ghost" size="sm" onClick={() => setEditingAvailability(false)}>
-                  Cancel
+          {/* Only admin / doctor can edit schedule */}
+          {canEditSchedule && (
+            <div className="flex items-center gap-2">
+              {saveSuccess && (
+                <div className="flex items-center gap-1.5 text-xs text-green-500 animate-fade-in">
+                  <CheckCircle className="h-3 w-3" /> Saved
+                </div>
+              )}
+              {editingAvailability ? (
+                <>
+                  <Button variant="ghost" size="sm" onClick={() => setEditingAvailability(false)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => saveMutation.mutate()}
+                    disabled={saveMutation.isPending}
+                  >
+                    {saveMutation.isPending ? "Saving..." : "Save changes"}
+                  </Button>
+                </>
+              ) : (
+                <Button variant="outline" size="sm" onClick={startEditing}>
+                  Edit schedule
                 </Button>
-                <Button 
-                  size="sm" 
-                  onClick={() => saveMutation.mutate()}
-                  disabled={saveMutation.isPending}
-                >
-                  {saveMutation.isPending ? "Saving..." : "Save changes"}
-                </Button>
-              </>
-            ) : (
-              <Button variant="outline" size="sm" onClick={startEditing}>
-                Edit schedule
-              </Button>
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </div>
 
         {avLoading ? (
@@ -214,7 +222,9 @@ export default function DoctorDetailPage() {
         ) : !editingAvailability ? (
           currentSlots.length === 0 ? (
             <div className="flex items-center justify-center h-20 rounded-xl border border-dashed border-border text-muted-foreground text-sm">
-              No schedule set — click "Edit schedule" to add working hours
+              {canEditSchedule
+                ? `No schedule set — click "Edit schedule" to add working hours`
+                : "No schedule set yet"}
             </div>
           ) : (
             <div className="flex flex-col gap-2">
@@ -247,31 +257,17 @@ export default function DoctorDetailPage() {
               <div key={i} className="p-3 rounded-xl bg-accent border border-border flex flex-col gap-3">
                 <div className="flex items-center gap-3">
                   <div className="flex-1">
-                    <Select
-                      value={slot.dayOfWeek}
-                      onValueChange={(value) => updateSlot(i, "dayOfWeek", value)}
-                    >
-                      <SelectTrigger className="h-8">
-                        <SelectValue placeholder="Select day" />
-                      </SelectTrigger>
+                    <Select value={slot.dayOfWeek} onValueChange={(value) => updateSlot(i, "dayOfWeek", value)}>
+                      <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        {DAYS.map((d) => (
-                          <SelectItem key={d.value} value={d.value}>
-                            {d.label}
-                          </SelectItem>
-                        ))}
+                        {DAYS.map((d) => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
-                  
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-muted-foreground">Active</span>
-                    <Switch
-                      checked={slot.isActive}
-                      onCheckedChange={(checked) => updateSlot(i, "isActive", checked)}
-                    />
+                    <Switch checked={slot.isActive} onCheckedChange={(checked) => updateSlot(i, "isActive", checked)} />
                   </div>
-                  
                   <Button
                     variant="ghost"
                     size="sm"
@@ -281,7 +277,6 @@ export default function DoctorDetailPage() {
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
-                
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <Label className="text-xs text-muted-foreground">Start Time</Label>
@@ -292,7 +287,6 @@ export default function DoctorDetailPage() {
                       className="h-8 text-sm"
                     />
                   </div>
-                  
                   <div className="space-y-1">
                     <Label className="text-xs text-muted-foreground">End Time</Label>
                     <Input
@@ -303,33 +297,23 @@ export default function DoctorDetailPage() {
                     />
                   </div>
                 </div>
-                
                 <div className="space-y-1">
                   <Label className="text-xs text-muted-foreground">Slot Duration</Label>
                   <Select
                     value={slot.slotDuration.toString()}
                     onValueChange={(value) => updateSlot(i, "slotDuration", parseInt(value))}
                   >
-                    <SelectTrigger className="h-8">
-                      <SelectValue placeholder="Select duration" />
-                    </SelectTrigger>
+                    <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {[15, 20, 30, 45, 60].map((m) => (
-                        <SelectItem key={m} value={m.toString()}>
-                          {m} minutes
-                        </SelectItem>
+                        <SelectItem key={m} value={m.toString()}>{m} minutes</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
               </div>
             ))}
-            
-            <Button
-              variant="outline"
-              onClick={addSlot}
-              className="w-full h-10 border-dashed gap-2"
-            >
+            <Button variant="outline" onClick={addSlot} className="w-full h-10 border-dashed gap-2">
               <Plus className="h-4 w-4" /> Add day
             </Button>
           </div>

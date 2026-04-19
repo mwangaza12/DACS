@@ -2,33 +2,40 @@
 
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchPatientById, fetchMedicalRecords, fetchAppointments, fetchBills } from "@/lib/queries";
+import { useAuthStore } from "@/store/auth.store";
+import { api } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { StatusBadge, TypeBadge } from "@/components/appointments/status-badge";
 import { cn } from "@/lib/utils";
 import {
   ArrowLeft, User, Calendar, FileText, CreditCard,
-  Phone, MapPin, Shield, AlertCircle, Clock,
+  Phone, MapPin, Shield, AlertCircle, Clock, Pencil, X, Check,
 } from "lucide-react";
 import { format, parseISO, differenceInYears } from "date-fns";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 
 type Tab = "overview" | "records" | "appointments" | "billing";
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
-  { id: "overview",     label: "Overview",     icon: <User size={13} /> },
+  { id: "overview",     label: "Overview",        icon: <User size={13} /> },
   { id: "records",      label: "Medical records", icon: <FileText size={13} /> },
-  { id: "appointments", label: "Appointments", icon: <Calendar size={13} /> },
-  { id: "billing",      label: "Billing",      icon: <CreditCard size={13} /> },
+  { id: "appointments", label: "Appointments",    icon: <Calendar size={13} /> },
+  { id: "billing",      label: "Billing",         icon: <CreditCard size={13} /> },
 ];
 
 const BILL_STATUS_STYLES: Record<string, string> = {
-  pending:          "bg-warning/10 text-warning border-warning/20",
-  paid:             "bg-success/10 text-success border-success/20",
-  partially_paid:   "bg-blue-500/10 text-blue-400 border-blue-500/20",
-  insurance_pending:"bg-violet-500/10 text-violet-400 border-violet-500/20",
-  written_off:      "bg-border text-text-muted border-border",
+  pending:           "bg-warning/10 text-warning border-warning/20",
+  paid:              "bg-success/10 text-success border-success/20",
+  partially_paid:    "bg-blue-500/10 text-blue-400 border-blue-500/20",
+  insurance_pending: "bg-violet-500/10 text-violet-400 border-violet-500/20",
+  written_off:       "bg-border text-text-muted border-border",
 };
 
 function fmt(val: string | null | undefined) {
@@ -36,10 +43,149 @@ function fmt(val: string | null | undefined) {
   return isNaN(n) ? "—" : `KES ${n.toLocaleString("en-KE", { minimumFractionDigits: 0 })}`;
 }
 
+// ── Edit Patient Modal (admin only) ────────────────────────────────────────────
+function EditPatientModal({
+  patient,
+  onClose,
+}: {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  patient: any;
+  onClose: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [firstName,             setFirstName]             = useState(patient.firstName ?? "");
+  const [lastName,              setLastName]              = useState(patient.lastName ?? "");
+  const [address,               setAddress]               = useState(patient.address ?? "");
+  const [insuranceProvider,     setInsuranceProvider]     = useState(patient.insuranceProvider ?? "");
+  const [insuranceNumber,       setInsuranceNumber]       = useState(patient.insuranceNumber ?? "");
+  const [emergencyContactName,  setEmergencyContactName]  = useState(patient.emergencyContactName ?? "");
+  const [emergencyContactPhone, setEmergencyContactPhone] = useState(patient.emergencyContactPhone ?? "");
+  const [gender,                setGender]                = useState(patient.gender ?? "other");
+  const [error, setError] = useState<string | null>(null);
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      api.put(`/patients/${patient.patientId}`, {
+        firstName,
+        lastName,
+        address,
+        insuranceProvider,
+        insuranceNumber,
+        emergencyContactName,
+        emergencyContactPhone,
+        gender,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["patient", patient.patientId] });
+      queryClient.invalidateQueries({ queryKey: ["patients"] });
+      onClose();
+    },
+    onError: (err: unknown) => {
+      setError(
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+          "Failed to update patient."
+      );
+    },
+  });
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50" onClick={onClose} />
+      <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+        <div className="w-full max-w-md bg-card border border-border rounded-2xl shadow-lg p-6 animate-fade-up max-h-[90vh] overflow-y-auto">
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+                <Pencil size={14} className="text-primary" />
+              </div>
+              <p className="font-display font-bold text-base text-foreground">Edit patient</p>
+            </div>
+            <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-lg bg-accent border border-border text-muted-foreground hover:text-foreground transition-all cursor-pointer">
+              <X size={14} />
+            </button>
+          </div>
+
+          {error && (
+            <div className="mb-4 p-3 rounded-xl bg-red-950/40 border border-red-500/30 text-sm text-red-400">{error}</div>
+          )}
+
+          <div className="flex flex-col gap-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">First name</Label>
+                <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} className="h-8 text-sm" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Last name</Label>
+                <Input value={lastName} onChange={(e) => setLastName(e.target.value)} className="h-8 text-sm" />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs">Gender</Label>
+              <Select value={gender} onValueChange={setGender}>
+                <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="male">Male</SelectItem>
+                  <SelectItem value="female">Female</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs">Address</Label>
+              <Input value={address} onChange={(e) => setAddress(e.target.value)} className="h-8 text-sm" placeholder="123 Main St, Nairobi" />
+            </div>
+
+            <div className="border-t border-border pt-3">
+              <p className="text-[11px] text-muted-foreground uppercase tracking-wider mb-3">Insurance</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Provider</Label>
+                  <Input value={insuranceProvider} onChange={(e) => setInsuranceProvider(e.target.value)} className="h-8 text-sm" placeholder="NHIF, AAR…" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Number</Label>
+                  <Input value={insuranceNumber} onChange={(e) => setInsuranceNumber(e.target.value)} className="h-8 text-sm" />
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t border-border pt-3">
+              <p className="text-[11px] text-muted-foreground uppercase tracking-wider mb-3">Emergency contact</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Name</Label>
+                  <Input value={emergencyContactName} onChange={(e) => setEmergencyContactName(e.target.value)} className="h-8 text-sm" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Phone</Label>
+                  <Input value={emergencyContactPhone} onChange={(e) => setEmergencyContactPhone(e.target.value)} className="h-8 text-sm" placeholder="+254…" />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <Button variant="outline" onClick={onClose} className="flex-1">Cancel</Button>
+              <Button onClick={() => mutation.mutate()} disabled={mutation.isPending} className="flex-1">
+                <Check size={13} /> {mutation.isPending ? "Saving…" : "Save changes"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ── Main page ──────────────────────────────────────────────────────────────────
 export default function PatientProfilePage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const { isAdmin } = useAuthStore();
   const [tab, setTab] = useState<Tab>("overview");
+  const [editingPatient, setEditingPatient] = useState(false);
 
   const { data: patient, isLoading } = useQuery({
     queryKey: ["patient", id],
@@ -73,7 +219,7 @@ export default function PatientProfilePage() {
 
   return (
     <div className="flex flex-col gap-5 animate-fade-up max-w-4xl">
-      {/* Back button */}
+      {/* Back */}
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="sm" onClick={() => router.back()}>
           <ArrowLeft size={14} /> Back
@@ -95,7 +241,6 @@ export default function PatientProfilePage() {
         <div className="rounded-2xl bg-card border border-border p-5 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-48 h-48 bg-primary-500/5 rounded-full blur-3xl translate-x-1/4 -translate-y-1/4 pointer-events-none" />
           <div className="relative z-10 flex items-start gap-5">
-            {/* Avatar */}
             <div className="w-16 h-16 rounded-2xl bg-primary-500/15 border border-primary-500/25 flex items-center justify-center flex-shrink-0">
               <span className="font-display font-bold text-2xl text-primary-400">
                 {patient.firstName?.[0]}{patient.lastName?.[0]}
@@ -107,9 +252,7 @@ export default function PatientProfilePage() {
                 {patient.firstName} {patient.lastName}
               </h3>
               <div className="flex items-center gap-2 flex-wrap">
-                {age !== null && (
-                  <span className="text-xs text-text-secondary font-body">{age} years old</span>
-                )}
+                {age !== null && <span className="text-xs text-text-secondary font-body">{age} years old</span>}
                 <span className="text-text-muted">·</span>
                 <span className="text-xs text-text-secondary font-body capitalize">{patient.gender}</span>
                 {patient.nationalId && (
@@ -119,8 +262,6 @@ export default function PatientProfilePage() {
                   </>
                 )}
               </div>
-
-              {/* Quick stats */}
               <div className="flex flex-wrap gap-3 mt-3">
                 {patient.insuranceProvider && (
                   <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-surface border border-border text-xs font-body">
@@ -138,12 +279,14 @@ export default function PatientProfilePage() {
             </div>
 
             {/* Actions */}
-            <div className="flex gap-2 flex-shrink-0">
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => router.push(`/appointments/new`)}
-              >
+            <div className="flex gap-2 flex-shrink-0 flex-wrap justify-end">
+              {/* Admin: edit patient info */}
+              {isAdmin() && (
+                <Button size="sm" variant="outline" onClick={() => setEditingPatient(true)}>
+                  <Pencil size={13} /> Edit patient
+                </Button>
+              )}
+              <Button size="sm" variant="secondary" onClick={() => router.push(`/appointments/new`)}>
                 <Calendar size={13} /> Book appointment
               </Button>
             </div>
@@ -178,11 +321,11 @@ export default function PatientProfilePage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[
               { icon: <Calendar size={14} />, label: "Date of birth", value: (() => { try { return format(parseISO(patient.dateOfBirth), "MMMM d, yyyy"); } catch { return patient.dateOfBirth; } })() },
-              { icon: <User size={14} />,       label: "Gender",     value: patient.gender, className: "capitalize" },
-              { icon: <Phone size={14} />,      label: "Emergency contact", value: patient.emergencyContactName ? `${patient.emergencyContactName} · ${patient.emergencyContactPhone ?? ""}` : "—" },
-              { icon: <MapPin size={14} />,     label: "Address",    value: patient.address ?? "—" },
-              { icon: <Shield size={14} />,     label: "Insurance",  value: patient.insuranceProvider ?? "—" },
-              { icon: <Shield size={14} />,     label: "Insurance #", value: patient.insuranceNumber ?? "—" },
+              { icon: <User size={14} />,     label: "Gender",        value: patient.gender, className: "capitalize" },
+              { icon: <Phone size={14} />,    label: "Emergency contact", value: patient.emergencyContactName ? `${patient.emergencyContactName} · ${patient.emergencyContactPhone ?? ""}` : "—" },
+              { icon: <MapPin size={14} />,   label: "Address",       value: patient.address ?? "—" },
+              { icon: <Shield size={14} />,   label: "Insurance",     value: patient.insuranceProvider ?? "—" },
+              { icon: <Shield size={14} />,   label: "Insurance #",   value: patient.insuranceNumber ?? "—" },
             ].map(({ icon, label, value, className }) => (
               <div key={label} className="p-4 rounded-xl bg-card border border-border flex items-start gap-3">
                 <span className="text-text-tertiary mt-0.5 flex-shrink-0">{icon}</span>
@@ -208,7 +351,11 @@ export default function PatientProfilePage() {
                 No medical records yet
               </div>
             ) : records.map((r) => (
-              <div key={r.medicalRecordId} className="p-4 rounded-2xl bg-card border border-border flex flex-col gap-3">
+              <div
+                key={r.medicalRecordId}
+                onClick={() => router.push(`/medical-records/${r.medicalRecordId}`)}
+                className="p-4 rounded-2xl bg-card border border-border flex flex-col gap-3 cursor-pointer hover:border-primary-500/30 transition-all"
+              >
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-body font-medium text-text-muted">
                     {(() => { try { return format(parseISO(r.recordDate), "MMMM d, yyyy"); } catch { return r.recordDate; } })()}
@@ -263,7 +410,7 @@ export default function PatientProfilePage() {
                   <div className="flex items-center gap-2 mb-1">
                     <TypeBadge type={a.appointmentType} size="sm" />
                     <span className="text-[11px] text-text-muted font-body">
-                      {(() => { try { return format(parseISO(a.appointmentDate), "MMM d, yyyy"); } catch { return a.appointmentDate; } })()} at {a.appointmentTime.slice(0,5)}
+                      {(() => { try { return format(parseISO(a.appointmentDate), "MMM d, yyyy"); } catch { return a.appointmentDate; } })()} at {a.appointmentTime.slice(0, 5)}
                     </span>
                   </div>
                   {a.reason && <p className="text-xs text-text-tertiary font-body truncate">{a.reason}</p>}
@@ -284,8 +431,7 @@ export default function PatientProfilePage() {
             ) : bills.map((b) => (
               <div
                 key={b.billId}
-                onClick={() => router.push(`/billing/${b.billId}`)}
-                className="flex items-center gap-4 p-4 rounded-2xl bg-card border border-border hover:border-primary-500/30 transition-all cursor-pointer"
+                className="flex items-center gap-4 p-4 rounded-2xl bg-card border border-border hover:border-primary-500/30 transition-all"
               >
                 <div className="w-10 h-10 rounded-xl bg-warning/10 border border-warning/20 flex items-center justify-center flex-shrink-0">
                   <CreditCard size={16} className="text-warning" />
@@ -309,6 +455,10 @@ export default function PatientProfilePage() {
           </div>
         )}
       </div>
+
+      {editingPatient && patient && (
+        <EditPatientModal patient={patient} onClose={() => setEditingPatient(false)} />
+      )}
     </div>
   );
 }
