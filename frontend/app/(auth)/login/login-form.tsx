@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Eye, EyeOff, Mail, Lock, ArrowRight } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, ArrowRight, CheckCircle } from "lucide-react";
 import { loginSchema, LoginFormData } from "@/lib/schemas";
 import { authApi } from "@/lib/api";
 import { useAuthStore } from "@/store/auth.store";
@@ -21,6 +21,7 @@ export default function LoginPage() {
   const router       = useRouter();
   const searchParams = useSearchParams();
   const { setAuth }  = useAuthStore();
+  const registered   = searchParams.get("registered") === "true";
   const [showPassword, setShowPassword] = useState(false);
   const [serverError,  setServerError]  = useState<string | null>(null);
 
@@ -55,6 +56,14 @@ export default function LoginPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {registered && (
+              <div className="mb-5 p-4 rounded-xl bg-green-950/40 border border-green-500/30 flex items-start gap-3 animate-fade-in">
+                <CheckCircle className="h-4 w-4 text-green-400 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-green-400">
+                  Account created successfully! Sign in to continue.
+                </p>
+              </div>
+            )}
             {serverError && (
               <div className="mb-5 p-4 rounded-xl bg-red-950/40 border border-red-500/30 flex items-start gap-3 animate-fade-in">
                 <div className="w-4 h-4 rounded-full bg-red-500/20 border border-red-500/40 flex items-center justify-center flex-shrink-0 mt-0.5">

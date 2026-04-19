@@ -14,7 +14,6 @@ import {
   RegisterPatientFormData,
 } from "@/lib/schemas";
 import { authApi } from "@/lib/api";
-import { useAuthStore } from "@/store/auth.store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,7 +34,6 @@ type Step = "credentials" | "profile";
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { setAuth } = useAuthStore();
   const [step, setStep] = useState<Step>("credentials");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -57,10 +55,8 @@ export default function RegisterPage() {
     setServerError(null);
     try {
       const { confirmPassword: _, ...payload } = data as RegisterPatientFormData & { confirmPassword: string };
-      const res = await authApi.register(payload);
-      const { user, profile, accessToken, refreshToken } = res.data.data;
-      setAuth({ user, profile, accessToken, refreshToken });
-      router.push("/dashboard");
+      await authApi.register(payload);
+      router.push("/login?registered=true");
     } catch (err: unknown) {
       const message =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
