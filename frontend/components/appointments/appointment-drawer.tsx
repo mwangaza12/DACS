@@ -156,13 +156,13 @@ export function AppointmentDrawer({ appointmentId, onClose }: AppointmentDrawerP
                   },
                   {
                     icon: <User className="h-3.5 w-3.5" />,
-                    label: "Patient ID",
-                    value: appt.patientId.slice(0, 16) + "…",
+                    label: "Patient",
+                    value: `${appt.patient.firstName} ${appt.patient.lastName}`,
                   },
                   {
                     icon: <Stethoscope className="h-3.5 w-3.5" />,
-                    label: "Doctor ID",
-                    value: appt.doctorId.slice(0, 16) + "…",
+                    label: "Doctor",
+                    value: `Dr. ${appt.doctor.firstName} ${appt.doctor.lastName}`,
                   },
                 ].map(({ icon, label, value }) => (
                   <div key={label} className="flex items-start gap-3 p-3 rounded-xl bg-card border border-border/60">

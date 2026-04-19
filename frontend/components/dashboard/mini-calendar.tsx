@@ -66,19 +66,23 @@ export function MiniCalendar() {
               className={cn(
                 "aspect-square flex items-center justify-center rounded-lg text-[11px] font-body relative",
                 "transition-all duration-100 cursor-default",
-                isToday && "bg-primary-500 text-white font-bold shadow-glow-sm",
+                isToday && "bg-white text-gray-900 font-bold ring-2 ring-primary-500 ring-offset-1 ring-offset-background",
                 !isToday && count > 0 && count < 3 && "bg-primary-500/15 text-primary-400",
                 !isToday && count >= 3 && count < 6 && "bg-primary-500/30 text-primary-300",
                 !isToday && count >= 6 && "bg-primary-500/50 text-primary-200",
                 !isToday && count === 0 && isPast && "text-text-muted",
                 !isToday && count === 0 && !isPast && "text-text-secondary hover:bg-surface",
               )}
-              title={count > 0 ? `${count} appointment${count !== 1 ? "s" : ""}` : undefined}
+              title={isToday ? "Today" : count > 0 ? `${count} appointment${count !== 1 ? "s" : ""}` : undefined}
             >
               {day.getDate()}
               {/* Dot for appointments */}
               {count > 0 && !isToday && (
                 <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary-400" />
+              )}
+              {/* Today indicator dot */}
+              {isToday && count > 0 && (
+                <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary-500" />
               )}
             </div>
           );
