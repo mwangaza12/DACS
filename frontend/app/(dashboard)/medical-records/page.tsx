@@ -2,43 +2,177 @@
 
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import {
+  useReactTable,
+  getCoreRowModel,
+  getSortedRowModel,
+  flexRender,
+  ColumnDef,
+  SortingState,
+} from "@tanstack/react-table";
 import { fetchMedicalRecords } from "@/lib/queries";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { useRouter } from "next/navigation";
 import { format, parseISO } from "date-fns";
-import { FileText, Clock, Search, ChevronRight } from "lucide-react";
+import { Search, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 10;
 
 export default function MedicalRecordsPage() {
   const router = useRouter();
   const [search, setSearch] = useState("");
-  const [page, setPage]     = useState(1);
+  const [page, setPage] = useState(1);
+  const [sorting, setSorting] = useState<SortingState>([]);
 
-  const { data: records, isLoading } = useQuery({
+  const { data: raw, isLoading, isFetching } = useQuery({
     queryKey: ["medical-records"],
     queryFn: () => fetchMedicalRecords(),
   });
 
+  const records = raw ?? [];
+
   const filtered = useMemo(() => {
-    return (records ?? []).filter((r) => {
-      if (!search) return true;
-      const q = search.toLowerCase();
-      return (
-        r.diagnosis?.toLowerCase().includes(q) ||
-        r.symptoms?.toLowerCase().includes(q) ||
-        r.prescription?.toLowerCase().includes(q)
-      );
+    let rows = [...records];
+    
+    // Sort by creation date (most recent first)
+    rows = rows.sort((a, b) => {
+      const dateA = new Date(a.createdAt || a.recordDate).getTime();
+      const dateB = new Date(b.createdAt || b.recordDate).getTime();
+      return dateB - dateA;
     });
+
+    if (search) {
+      const q = search.toLowerCase();
+      rows = rows.filter(
+        (r) =>
+          r.diagnosis?.toLowerCase().includes(q) ||
+          r.symptoms?.toLowerCase().includes(q) ||
+          r.prescription?.toLowerCase().includes(q)
+      );
+    }
+    
+    return rows;
   }, [records, search]);
 
-  const total      = filtered.length;
+  const total = filtered.length;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const safePage   = Math.min(page, totalPages);
-  const pageRows   = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const safePage = Math.min(page, totalPages);
+  const pageRows = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
-  const handleSearch = (val: string) => { setSearch(val); setPage(1); };
+  if (safePage !== page) setPage(safePage);
+
+  const handleSearch = (val: string) => {
+    setSearch(val);
+    setPage(1);
+  };
+
+  const columns = useMemo<ColumnDef<any>[]>(
+    () => [
+      {
+        accessorKey: "recordDate",
+        header: "Record Date",
+        cell: ({ row }) => {
+          const dateStr = (() => {
+            try {
+              return format(parseISO(row.original.recordDate), "MMM d, yyyy");
+            } catch {
+              return row.original.recordDate;
+            }
+          })();
+          return (
+            <span className="text-sm font-medium whitespace-nowrap">
+              {dateStr}
+            </span>
+          );
+        },
+      },
+      {
+        accessorKey: "diagnosis",
+        header: "Diagnosis",
+        cell: ({ getValue }) => (
+          <span className="text-sm text-text-primary line-clamp-2">
+            {getValue<string | null>() ?? (
+              <span className="italic text-text-muted">No diagnosis</span>
+            )}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "symptoms",
+        header: "Symptoms",
+        cell: ({ getValue }) => (
+          <span className="text-xs text-text-secondary line-clamp-2">
+            {getValue<string | null>() ?? (
+              <span className="italic text-text-muted">No symptoms</span>
+            )}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "prescription",
+        header: "Prescription",
+        cell: ({ getValue }) => (
+          <span className="text-xs font-mono text-text-primary line-clamp-1">
+            {getValue<string | null>() ?? (
+              <span className="italic text-text-muted font-body">No prescription</span>
+            )}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "followUpDate",
+        header: "Follow-up",
+        cell: ({ getValue }) => {
+          const date = getValue<string | null>();
+          if (!date) return <span className="text-xs italic text-text-muted">—</span>;
+          
+          const followStr = (() => {
+            try {
+              return format(parseISO(date), "MMM d, yyyy");
+            } catch {
+              return date;
+            }
+          })();
+          
+          return (
+            <span className="text-xs text-warning whitespace-nowrap">
+              {followStr}
+            </span>
+          );
+        },
+      },
+      {
+        id: "actions",
+        header: "",
+        cell: ({ row }) => (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              router.push(`/medical-records/${row.original.medicalRecordId}`);
+            }}
+            className="text-xs font-medium whitespace-nowrap text-primary-400 hover:text-primary-300 transition-colors"
+          >
+            View →
+          </button>
+        ),
+      },
+    ],
+    [router]
+  );
+
+  const table = useReactTable({
+    data: pageRows,
+    columns,
+    state: { sorting },
+    onSortingChange: setSorting,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    manualPagination: true,
+  });
+
+  const isStale = !isLoading && isFetching;
 
   return (
     <div className="flex flex-col gap-5 animate-fade-up">
@@ -56,98 +190,110 @@ export default function MedicalRecordsPage() {
         <p className="text-xs text-text-tertiary font-body">
           {isLoading
             ? "Loading…"
-            : `${total} record${total !== 1 ? "s" : ""}${total > PAGE_SIZE ? ` · page ${safePage} of ${totalPages}` : ""}`
-          }
+            : `${total} record${total !== 1 ? "s" : ""}`}
         </p>
       </div>
 
-      {/* Records grid */}
-      {isLoading ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {Array.from({ length: PAGE_SIZE }).map((_, i) => (
-            <Skeleton key={i} className="h-48 rounded-2xl" />
-          ))}
-        </div>
-      ) : !filtered.length ? (
-        <div className="flex flex-col items-center justify-center gap-3 h-48 rounded-2xl border border-dashed border-border text-text-muted">
-          <FileText size={24} />
-          <p className="text-sm font-body">No medical records found</p>
-        </div>
-      ) : (
-        <>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {pageRows.map((r) => {
-              const dateStr = (() => {
-                try { return format(parseISO(r.recordDate), "MMMM d, yyyy"); }
-                catch { return r.recordDate; }
-              })();
-              const followStr = r.followUpDate
-                ? (() => {
-                    try { return format(parseISO(r.followUpDate), "MMM d, yyyy"); }
-                    catch { return r.followUpDate; }
-                  })()
-                : null;
+      {/* Table */}
+      <div className="border rounded-2xl">
+        <div className="w-full overflow-x-auto">
+          <div className="inline-block min-w-full align-middle">
+            <div
+              className={cn(
+                "transition-opacity duration-150",
+                isStale && "opacity-60"
+              )}
+            >
+              <table className="min-w-[700px] w-full">
+                <thead>
+                  {table.getHeaderGroups().map((hg) => (
+                    <tr key={hg.id} className="border-b border-border/60">
+                      {hg.headers.map((header) => (
+                        <th
+                          key={header.id}
+                          onClick={header.column.getToggleSortingHandler()}
+                          className="px-4 py-3 text-left text-xs text-text-muted font-medium cursor-pointer select-none"
+                        >
+                          <div className="flex items-center gap-1.5 whitespace-nowrap">
+                            {flexRender(
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
+                            {header.column.getCanSort() &&
+                              (header.column.getIsSorted() === "asc" ? (
+                                <ChevronUp size={12} />
+                              ) : header.column.getIsSorted() === "desc" ? (
+                                <ChevronDown size={12} />
+                              ) : (
+                                <ChevronsUpDown
+                                  size={12}
+                                  className="opacity-40"
+                                />
+                              ))}
+                          </div>
+                        </th>
+                      ))}
+                    </tr>
+                  ))}
+                </thead>
 
-              return (
-                <div
-                  key={r.medicalRecordId}
-                  onClick={() => router.push(`/medical-records/${r.medicalRecordId}`)}
-                  className="group rounded-2xl bg-card border border-border p-5 hover:border-primary-500/30 hover:shadow-card-hover transition-all cursor-pointer flex flex-col gap-4"
-                >
-                  {/* Header */}
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-xl bg-primary-500/10 border border-primary-500/20 flex items-center justify-center">
-                        <FileText size={14} className="text-primary-400" />
-                      </div>
-                      <div>
-                        <p className="text-[11px] text-text-muted font-body uppercase tracking-wider">Record date</p>
-                        <p className="text-xs font-medium text-text-primary font-body">{dateStr}</p>
-                      </div>
-                    </div>
-                    <ChevronRight size={15} className="text-text-muted group-hover:text-primary-400 group-hover:translate-x-0.5 transition-all" />
-                  </div>
-
-                  {/* Diagnosis */}
-                  {r.diagnosis && (
-                    <div>
-                      <p className="text-[10px] text-text-muted font-body uppercase tracking-wider mb-1">Diagnosis</p>
-                      <p className="text-sm font-medium text-text-primary font-body line-clamp-2">{r.diagnosis}</p>
-                    </div>
+                <tbody>
+                  {isLoading ? (
+                    Array.from({ length: PAGE_SIZE }).map((_, i) => (
+                      <tr
+                        key={i}
+                        className="border-b border-border/40 last:border-0"
+                      >
+                        {columns.map((_, ci) => (
+                          <td key={ci} className="px-4 py-3">
+                            <Skeleton className="h-4 w-full" />
+                          </td>
+                        ))}
+                      </tr>
+                    ))
+                  ) : table.getRowModel().rows.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={columns.length}
+                        className="text-center py-16 text-text-muted text-sm"
+                      >
+                        No medical records found
+                      </td>
+                    </tr>
+                  ) : (
+                    table.getRowModel().rows.map((row) => (
+                      <tr
+                        key={row.id}
+                        onClick={() =>
+                          router.push(
+                            `/medical-records/${row.original.medicalRecordId}`
+                          )
+                        }
+                        className="border-b border-border/40 last:border-0 hover:bg-surface/60 cursor-pointer transition-colors"
+                      >
+                        {row.getVisibleCells().map((cell) => (
+                          <td key={cell.id} className="px-4 py-3">
+                            {flexRender(
+                              cell.column.columnDef.cell,
+                              cell.getContext()
+                            )}
+                          </td>
+                        ))}
+                      </tr>
+                    ))
                   )}
-
-                  {/* Symptoms */}
-                  {r.symptoms && (
-                    <p className="text-xs text-text-secondary font-body line-clamp-2 leading-relaxed">{r.symptoms}</p>
-                  )}
-
-                  {/* Prescription */}
-                  {r.prescription && (
-                    <div className="px-3 py-2 rounded-xl bg-surface border border-border/60">
-                      <p className="text-[10px] text-text-muted font-body uppercase tracking-wider mb-0.5">Rx</p>
-                      <p className="text-xs text-text-primary font-mono line-clamp-1">{r.prescription}</p>
-                    </div>
-                  )}
-
-                  {/* Follow-up */}
-                  {followStr && (
-                    <div className="flex items-center gap-1.5 text-xs text-warning font-body">
-                      <Clock size={11} />
-                      Follow-up: {followStr}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                </tbody>
+              </table>
+            </div>
           </div>
+        </div>
+      </div>
 
-          <PaginationControls
-            page={safePage}
-            totalPages={totalPages}
-            onPageChange={setPage}
-          />
-        </>
-      )}
+      <PaginationControls
+        page={safePage}
+        totalPages={totalPages}
+        onPageChange={setPage}
+      />
     </div>
   );
 }

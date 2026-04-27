@@ -62,6 +62,15 @@ export default function AppointmentsPage() {
 
   const filtered = useMemo(() => {
     let rows = allRows;
+    
+    // Sort by creation date (most recent first) - assuming createdAt field exists
+    // If your appointment has a different field name (like created_at, dateCreated, etc.), update this
+    rows = [...rows].sort((a, b) => {
+      const dateA = new Date(a.createdAt || a.appointmentDate).getTime();
+      const dateB = new Date(b.createdAt || b.appointmentDate).getTime();
+      return dateB - dateA; // descending order (newest first)
+    });
+    
     if (statusFilter !== "all")
       rows = rows.filter((r) => r.appointmentStatus === statusFilter);
     if (typeFilter !== "all")
