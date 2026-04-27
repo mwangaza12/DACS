@@ -80,7 +80,6 @@ export default function AppointmentsPage() {
       rows = rows.filter(
         (r) =>
           // Search by patient name, doctor name, reason, or date
-          `${r.patient.firstName} ${r.patient.lastName}`.toLowerCase().includes(q) ||
           `${r.doctor.firstName} ${r.doctor.lastName}`.toLowerCase().includes(q) ||
           r.reason?.toLowerCase().includes(q) ||
           r.appointmentDate.includes(q) ||
@@ -113,24 +112,6 @@ export default function AppointmentsPage() {
               <span className="text-xs text-text-muted whitespace-nowrap">
                 {row.original.appointmentTime.slice(0, 5)} – {row.original.endTime.slice(0, 5)}
               </span>
-            </div>
-          );
-        },
-      },
-      {
-        id: "patient",
-        header: "Patient",
-        cell: ({ row }) => {
-          const { firstName, lastName } = row.original.patient;
-          const email = row.original.patient.user?.email;
-          return (
-            <div className="flex flex-col gap-0.5">
-              <span className="text-sm font-medium whitespace-nowrap">
-                {firstName} {lastName}
-              </span>
-              {email && (
-                <span className="text-xs text-text-muted whitespace-nowrap">{email}</span>
-              )}
             </div>
           );
         },
