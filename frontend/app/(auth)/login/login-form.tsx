@@ -16,6 +16,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { cn } from "@/lib/utils";
 import { Navbar } from "@/components/navbar";
 import FooterSection from "@/components/footer";
+import { toast } from "sonner";
 
 export default function LoginPage() {
   const router       = useRouter();
@@ -36,6 +37,7 @@ export default function LoginPage() {
       setAuth({ user, profile, accessToken, refreshToken });
       const from = searchParams.get("from");
       router.push(from && from.startsWith("/") ? from : "/dashboard");
+      toast.success("Login Successfull");
     } catch (err: unknown) {
       setServerError(
         (err as { response?: { data?: { message?: string } } })
