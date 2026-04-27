@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { createAppointment, fetchDoctorById } from "@/lib/queries";
 import { DoctorPicker } from "@/components/appointments/doctor-picker";
 import { SlotPicker } from "@/components/appointments/slot-picker";
@@ -17,8 +18,15 @@ import {
 import { useAuthStore } from "@/store/auth.store";
 import { cn } from "@/lib/utils";
 import {
-  ArrowLeft, ArrowRight, CheckCircle, ChevronRight,
-  Calendar, Stethoscope, Clock, ClipboardList, Banknote,
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle,
+  ChevronRight,
+  Calendar,
+  Stethoscope,
+  Clock,
+  ClipboardList,
+  Banknote,
 } from "lucide-react";
 import { format, addMinutes, parse } from "date-fns";
 import { APPOINTMENT_TYPES, TYPE_LABELS } from "@/lib/appointment-utils";
@@ -38,18 +46,17 @@ export default function NewAppointmentPage() {
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
 
-  const [step, setStep]           = useState<Step>("doctor");
-  const [doctorId, setDoctorId]   = useState("");
-  const [date, setDate]           = useState("");
-  const [slot, setSlot]           = useState("");
-  const [apptType, setApptType]   = useState<AppointmentType>("regular");
-  const [reason, setReason]       = useState("");
-  const [notes, setNotes]         = useState("");
-  const [serverError, setServerError] = useState<string | null>(null);
+  const [step, setStep]         = useState<Step>("doctor");
+  const [doctorId, setDoctorId] = useState("");
+  const [date, setDate]         = useState("");
+  const [slot, setSlot]         = useState("");
+  const [apptType, setApptType] = useState<AppointmentType>("regular");
+  const [reason, setReason]     = useState("");
+  const [notes, setNotes]       = useState("");
 
   const stepIndex = STEPS.findIndex((s) => s.id === step);
 
-  // Fetch selected doctor details for the confirm step
+  // Fetch selected doctor details for confirm step
   const { data: selectedDoctor } = useQuery({
     queryKey: ["doctor", doctorId],
     queryFn: () => fetchDoctorById(doctorId),
@@ -62,13 +69,16 @@ export default function NewAppointmentPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-metrics"] });
+      toast.success("Appointment booked!", {
+        description: `Your appointment with ${doctorName} has been confirmed.`,
+      });
       router.push("/appointments");
     },
     onError: (err: unknown) => {
       const msg =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-        ?? "Failed to create appointment.";
-      setServerError(msg);
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+        "Failed to create appointment.";
+      toast.error("Booking failed", { description: msg });
     },
   });
 
@@ -84,7 +94,6 @@ export default function NewAppointmentPage() {
 
   const handleSubmit = () => {
     if (!user) return;
-    setServerError(null);
     mutation.mutate({
       patientId: user.userId,
       doctorId,
@@ -116,10 +125,12 @@ export default function NewAppointmentPage() {
     if (i > 0) setStep(order[i - 1]);
   };
 
-  // Derived doctor display values from the enriched DoctorFull response
+  // Derived display values
   const doctorName = selectedDoctor
     ? `Dr. ${selectedDoctor.firstName} ${selectedDoctor.lastName}`
-    : doctorId ? `Doctor ID: ${doctorId.slice(0, 16)}…` : "—";
+    : doctorId
+    ? `Doctor ID: ${doctorId.slice(0, 16)}…`
+    : "—";
   const doctorSpecialization = selectedDoctor?.specialization ?? null;
   const doctorDepartment     = selectedDoctor?.department ?? null;
   const consultationFee      = selectedDoctor?.consultationFee ?? null;
@@ -163,15 +174,6 @@ export default function NewAppointmentPage() {
       {/* Card */}
       <div className="rounded-2xl bg-card border border-border p-6">
 
-        {serverError && (
-          <div className="mb-5 p-4 rounded-xl bg-red-950/40 border border-danger/30 flex items-start gap-3">
-            <div className="w-4 h-4 rounded-full bg-danger/20 border border-danger/40 flex items-center justify-center flex-shrink-0 mt-0.5">
-              <div className="w-1.5 h-1.5 rounded-full bg-danger" />
-            </div>
-            <p className="text-sm text-danger/90 font-body">{serverError}</p>
-          </div>
-        )}
-
         {/* Step 1 — Doctor */}
         {step === "doctor" && (
           <div className="flex flex-col gap-4">
@@ -183,28 +185,8 @@ export default function NewAppointmentPage() {
                 Select the doctor you want to book with
               </p>
             </div>
+            {/* DoctorPicker handles its own selected highlight — no preview card below */}
             <DoctorPicker value={doctorId} onChange={setDoctorId} />
-
-            {/* Doctor preview card — shown once a doctor is selected */}
-            {selectedDoctor && (
-              <div className="p-4 rounded-xl bg-surface border border-border/60 flex flex-col gap-1">
-                <p className="text-sm font-semibold text-text-primary font-body">{doctorName}</p>
-                {doctorSpecialization && (
-                  <p className="text-xs text-text-secondary font-body">{doctorSpecialization}</p>
-                )}
-                {doctorDepartment && (
-                  <p className="text-xs text-text-muted font-body">{doctorDepartment}</p>
-                )}
-                {consultationFee && (
-                  <div className="flex items-center gap-1.5 mt-1">
-                    <Banknote size={12} className="text-text-muted" />
-                    <p className="text-xs text-text-secondary font-body">
-                      KES {parseFloat(consultationFee).toLocaleString()} consultation fee
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         )}
 
@@ -323,59 +305,56 @@ export default function NewAppointmentPage() {
             </div>
 
             <div className="flex flex-col gap-3">
-              {([
-                {
-                  icon: <Stethoscope size={14} />,
-                  label: "Doctor",
-                  value: doctorName,
-                  sub: [doctorSpecialization, doctorDepartment].filter(Boolean).join(" · "),
-                },
-                {
-                  icon: <Calendar size={14} />,
-                  label: "Date",
-                  value: (() => {
-                    try { return format(new Date(date), "EEEE, MMMM d yyyy"); }
-                    catch { return date; }
-                  })(),
-                },
-                {
-                  icon: <Clock size={14} />,
-                  label: "Time",
-                  value: slot ? `${slot.slice(0, 5)} – ${endTime.slice(0, 5)}` : "—",
-                },
-                {
-                  icon: <ClipboardList size={14} />,
-                  label: "Type",
-                  value: TYPE_LABELS[apptType as keyof typeof TYPE_LABELS] ?? apptType,
-                },
-                ...(consultationFee ? [{
-                  icon: <Banknote size={14} />,
-                  label: "Fee",
-                  value: `KES ${parseFloat(consultationFee).toLocaleString()}`,
-                }] : []),
-                ...(reason ? [{
-                  icon: <ClipboardList size={14} />,
-                  label: "Reason",
-                  value: reason,
-                }] : []),
-              ] as { icon: React.ReactNode; label: string; value: string; sub?: string }[])
-                .map(({ icon, label, value, sub }) => (
-                  <div
-                    key={label}
-                    className="flex items-start gap-3 p-3 rounded-xl bg-surface border border-border/60"
-                  >
-                    <span className="text-text-tertiary mt-0.5 flex-shrink-0">{icon}</span>
-                    <div>
-                      <p className="text-[11px] text-text-muted font-body uppercase tracking-wider mb-0.5">
-                        {label}
-                      </p>
-                      <p className="text-sm text-text-primary font-body leading-relaxed">{value}</p>
-                      {sub && (
-                        <p className="text-xs text-text-muted font-body mt-0.5">{sub}</p>
-                      )}
-                    </div>
+              {(
+                [
+                  {
+                    icon: <Stethoscope size={14} />,
+                    label: "Doctor",
+                    value: doctorName,
+                    sub: [doctorSpecialization, doctorDepartment].filter(Boolean).join(" · "),
+                  },
+                  {
+                    icon: <Calendar size={14} />,
+                    label: "Date",
+                    value: (() => {
+                      try { return format(new Date(date), "EEEE, MMMM d yyyy"); }
+                      catch { return date; }
+                    })(),
+                  },
+                  {
+                    icon: <Clock size={14} />,
+                    label: "Time",
+                    value: slot ? `${slot.slice(0, 5)} – ${endTime.slice(0, 5)}` : "—",
+                  },
+                  {
+                    icon: <ClipboardList size={14} />,
+                    label: "Type",
+                    value: TYPE_LABELS[apptType as keyof typeof TYPE_LABELS] ?? apptType,
+                  },
+                  ...(consultationFee
+                    ? [{ icon: <Banknote size={14} />, label: "Fee", value: `KES ${parseFloat(consultationFee).toLocaleString()}` }]
+                    : []),
+                  ...(reason
+                    ? [{ icon: <ClipboardList size={14} />, label: "Reason", value: reason }]
+                    : []),
+                ] as { icon: React.ReactNode; label: string; value: string; sub?: string }[]
+              ).map(({ icon, label, value, sub }) => (
+                <div
+                  key={label}
+                  className="flex items-start gap-3 p-3 rounded-xl bg-surface border border-border/60"
+                >
+                  <span className="text-text-tertiary mt-0.5 flex-shrink-0">{icon}</span>
+                  <div>
+                    <p className="text-[11px] text-text-muted font-body uppercase tracking-wider mb-0.5">
+                      {label}
+                    </p>
+                    <p className="text-sm text-text-primary font-body leading-relaxed">{value}</p>
+                    {sub && (
+                      <p className="text-xs text-text-muted font-body mt-0.5">{sub}</p>
+                    )}
                   </div>
-                ))}
+                </div>
+              ))}
             </div>
 
             {/* Glow CTA */}
@@ -383,7 +362,8 @@ export default function NewAppointmentPage() {
               <div className="absolute top-0 right-0 w-32 h-32 bg-primary-500/15 rounded-full blur-2xl -translate-x-4 -translate-y-4 pointer-events-none" />
               <p className="text-sm text-text-secondary font-body relative z-10">
                 By confirming, your appointment will be{" "}
-                <span className="text-primary-400 font-medium">scheduled</span> and the doctor will be notified.
+                <span className="text-primary-400 font-medium">scheduled</span> and the doctor
+                will be notified.
               </p>
             </div>
           </div>

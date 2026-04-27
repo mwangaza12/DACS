@@ -16,7 +16,7 @@ interface SlotPickerProps {
 function fmt12(time: string) {
   const [h, m] = time.split(":").map(Number);
   const ampm = h >= 12 ? "PM" : "AM";
-  const h12  = h % 12 || 12;
+  const h12 = h % 12 || 12;
   return `${h12}:${String(m).padStart(2, "0")} ${ampm}`;
 }
 
@@ -60,7 +60,9 @@ export function SlotPicker({ doctorId, date, value, onChange }: SlotPickerProps)
 
   const SlotGroup = ({ label, items }: { label: string; items: string[] }) => (
     <div className="flex flex-col gap-2">
-      <p className="text-[11px] font-body font-semibold text-text-muted uppercase tracking-wider">{label}</p>
+      <p className="text-[11px] font-body font-semibold text-text-muted uppercase tracking-wider">
+        {label}
+      </p>
       <div className="grid grid-cols-4 gap-2">
         {items.map((slot) => {
           const isSelected = value === slot;
@@ -69,10 +71,21 @@ export function SlotPicker({ doctorId, date, value, onChange }: SlotPickerProps)
               key={slot}
               type="button"
               onClick={() => onChange(slot)}
+              // Use inline style for the selected background + text to bypass any
+              // Tailwind CSS variable resolution issues that cause white-on-white.
+              style={
+                isSelected
+                  ? {
+                      backgroundColor: "hsl(var(--primary-500, 220 90% 56%))",
+                      color: "#ffffff",
+                      borderColor: "hsl(var(--primary-500, 220 90% 56%))",
+                    }
+                  : undefined
+              }
               className={cn(
                 "h-10 rounded-xl text-xs font-medium font-body border transition-all duration-100 cursor-pointer",
                 isSelected
-                  ? "bg-primary-500 text-white border-primary-500 shadow-glow-sm"
+                  ? "shadow-glow-sm ring-2 ring-primary-500/30 font-semibold"
                   : "bg-surface border-border text-text-secondary hover:border-primary-500/40 hover:text-primary-400 hover:bg-primary-500/5",
               )}
             >

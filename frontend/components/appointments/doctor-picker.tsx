@@ -48,38 +48,52 @@ export function DoctorPicker({ value, onChange }: DoctorPickerProps) {
               "flex items-center gap-3 p-4 rounded-2xl border text-left",
               "transition-all duration-150 cursor-pointer group",
               isSelected
-                ? "bg-primary-500/10 border-primary-500/40 shadow-glow-sm"
+                // stronger ring + tinted background so it's unmistakably selected
+                ? "bg-primary-500/20 border-primary-500 ring-2 ring-primary-500/40 shadow-glow-sm"
                 : "bg-surface border-border hover:border-primary-500/30 hover:bg-card",
             )}
           >
             {/* Avatar */}
-            <div className={cn(
-              "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-all",
-              isSelected
-                ? "bg-primary-500/20 border border-primary-500/40 text-primary-400"
-                : "bg-card border border-border text-text-muted group-hover:text-text-secondary",
-            )}>
+            <div
+              className={cn(
+                "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-all",
+                isSelected
+                  ? "bg-primary-500/30 border border-primary-500 text-primary-300"
+                  : "bg-card border border-border text-text-muted group-hover:text-text-secondary",
+              )}
+            >
               <Stethoscope size={16} />
             </div>
 
             <div className="flex-1 min-w-0">
-              <p className={cn(
-                "text-sm font-medium font-body truncate",
-                isSelected ? "text-primary-300" : "text-text-primary",
-              )}>
+              <p
+                className={cn(
+                  "text-sm font-semibold font-body truncate",
+                  // use a stronger colour token so it's visible regardless of theme
+                  isSelected ? "text-primary-400" : "text-text-primary",
+                )}
+              >
                 Dr. {doc.firstName} {doc.lastName}
               </p>
               <p className="text-xs text-text-tertiary font-body truncate mt-0.5">
                 {doc.specialization ?? "General Practice"}
-                {doc.consultationFee ? ` · KES ${Number(doc.consultationFee).toLocaleString()}` : ""}
+                {doc.consultationFee
+                  ? ` · KES ${Number(doc.consultationFee).toLocaleString()}`
+                  : ""}
               </p>
             </div>
 
-            {isSelected && (
-              <div className="w-5 h-5 rounded-full bg-primary-500 flex items-center justify-center flex-shrink-0">
-                <Check size={11} className="text-white" />
-              </div>
-            )}
+            {/* Check badge — always reserve the space so layout doesn't jump */}
+            <div
+              className={cn(
+                "w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 transition-all",
+                isSelected
+                  ? "bg-primary-500 opacity-100 scale-100"
+                  : "opacity-0 scale-75 pointer-events-none",
+              )}
+            >
+              <Check size={11} className="text-white" />
+            </div>
           </button>
         );
       })}
