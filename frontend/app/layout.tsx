@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { QueryProvider } from "@/components/providers/query-provider";
+import { Toaster } from "sonner";
 
 const fontSans = Inter({
   subsets: ["latin"],
@@ -30,8 +31,9 @@ export default function RootLayout({
     >
       <body className="min-h-full font-sans">
         <QueryProvider>
-        {children}
+          {children}
         </QueryProvider>
+        <Toaster richColors position="top-right" />
       </body>
     </html>
   );
